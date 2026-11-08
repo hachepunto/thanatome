@@ -6,7 +6,7 @@
 \usage{
 death_covariates(
   scores,
-  axes = c("ventilator", "ischemia", "agony"),
+  axes = c("ventilator", "agony", "ischemia"),
   center = TRUE,
   quiet = FALSE
 )
@@ -14,7 +14,8 @@ death_covariates(
 \arguments{
 \item{scores}{The \code{DataFrame} returned by \code{\link[=thanatome_score]{thanatome_score()}}.}
 
-\item{axes}{Columns to export (default the three signature scores).}
+\item{axes}{Columns to export (default the two axes and the ischemia
+component).}
 
 \item{center}{Logical; centre each column (default \code{TRUE}).}
 
@@ -32,7 +33,7 @@ label can be used there, but a continuous adjustment is the honest use of
 these scores.
 }
 \details{
-Two cautions are printed once. First, the axes vary only among the
+Two cautions are printed on each call unless \code{quiet = TRUE}. First, the axes vary only among the
 post-mortem samples: in a tumour-versus-control design every tumour sits
 at the same (undefined) value, so adjusting across groups partially
 confounds the death axes with the group effect; adjust within controls,

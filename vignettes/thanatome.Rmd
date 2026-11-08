@@ -1,10 +1,19 @@
 ---
 title: "Annotating post-mortem control samples with thanatome"
-author: "Hugo Tovar, Camila Barrios-Cervantes, Daniel Pérez-Calixto, Enrique Hernandez-Lemus"
+author:
+  - name: Hugo Tovar
+    affiliation: Instituto Nacional de Medicina Genómica (INMEGEN), Mexico City
+  - name: Camila Barrios-Cervantes
+    affiliation: INMEGEN
+  - name: Daniel Pérez-Calixto
+    affiliation: INMEGEN
+  - name: Enrique Hernandez-Lemus
+    affiliation: INMEGEN
 date: "`r Sys.Date()`"
 output:
   BiocStyle::html_document:
     toc: true
+bibliography: references.bib
 vignette: >
   %\VignetteIndexEntry{Annotating post-mortem control samples with thanatome}
   %\VignetteEngine{knitr::rmarkdown}
@@ -19,13 +28,15 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height
 
 # Introduction
 
-Post-mortem tissue from GTEx and similar resources is the usual "normal" control when a tumour cohort has no adjacent normal tissue. Those donors died in different ways: on a ventilator in intensive care (Hardy scale 0), suddenly (Hardy 1-2) or after a slow illness (Hardy 3-4), and their organs were collected hours after death. `thanatome` carries three consensus transcriptional signatures of those processes, derived from GTEx v8 across ten tissues, and uses them to annotate every sample of a cohort before any downstream analysis:
+Post-mortem tissue from GTEx [@gtex2020] and similar resources is the usual "normal" control when a tumour cohort has no adjacent normal tissue. Those donors died in different ways: on a ventilator in intensive care (Hardy scale 0), suddenly (Hardy 1-2) or after a slow illness (Hardy 3-4), and their organs were collected hours after death. Death and post-mortem ischemia leave transcriptional traces [@ferreira2018; @pozhitkov2017], and GTEx samples also carry technical contamination from neighbouring tissues [@nieuwenhuis2020]. `thanatome` carries consensus transcriptional signatures of those processes, derived from GTEx v8 across ten tissues, and uses them to annotate every sample of a cohort before any downstream analysis:
 
 - **ventilator**: ventilated versus non-ventilated donors; seen from outside GTEx it is the axis *perfused versus post-mortem*;
-- **ischemia**: post-mortem ischemic time, meaningful among perfused donors;
-- **agony**: slow versus fast deaths among non-ventilated donors.
+- **agony**: slow versus fast deaths among non-ventilated donors;
+- **ischemia**, not a third axis but the component of the ventilator axis sensitive to post-mortem ischemic time, meaningful among perfused donors only.
 
 For each sample the package returns a score per axis, a position scaled between the two poles of the reference tissue, a state label and technical flags. The user can then plot the cohort, select samples with explicit criteria, or carry the scores into a design matrix.
+
+How this differs from existing tools: `sva` [@leek2012] and `RUVSeq` [@risso2014] estimate unwanted variation from the data at hand without saying what it is; `limma::removeBatchEffect()` removes a known covariate. `thanatome` supplies the covariate with a biological name, anchored to GTEx references, and reports what each sample looks like before any adjustment. The post-mortem interval predictors of @ferreira2018 estimate ischemic time; here ischemic time is one component of a wider description of the donor's death.
 
 # Installation
 
@@ -49,14 +60,14 @@ ctl <- thanatome_example[, thanatome_example$group == "control"]
 table(hardy = ctl$hardy)
 ```
 
-A reference of the same tissue is mandatory: the scores are means of per-gene z-scores, and a sample has no z-score on its own. For GTEx-like data the package carries the reference of ten tissues.
+A reference of the same tissue is mandatory: the scores are means of per-gene z-scores, and a sample has no z-score on its own. The package carries the reference of ten GTEx tissues, built from recount3 counts [@wilks2021]; the example data come from recount3 too, so they match. For data quantified with another pipeline, pass your own cohort as `reference`: scores are rank-stable across pipelines but positions are not.
 
 ```{r score2}
 sc <- thanatome_score(ctl, reference = "ovary")
 sc[1:5, c("ventilator", "ischemia", "agony", "position_ventilator", "position_agony", "state")]
 ```
 
-Because the example carries the Hardy scale, the function reports as an internal check how well each score recovers the label:
+Because the example carries the Hardy scale, the function reports as an internal check how well each score recovers the label. These GTEx samples entered the consensus, the references and the poles, so the figures below are in-sample; the out-of-sample figures (signatures derived without the tissue) are AUC 0.87-0.94 for ventilator and 0.69-0.90 for agony.
 
 ```{r auc}
 metadata(sc)$auc
@@ -104,12 +115,12 @@ dim(adjusted)
 
 # Joint regression and the fraction explained
 
-With `method = "regression"` the sample's z profile is regressed jointly on the consensus vectors of the axes. This adds the coefficients and the fraction of the sample's deviation from the tissue centroid explained by the axes (over the signature genes; over the whole transcriptome only with a cohort reference, which covers all genes). Classification is the same as with the signature score; what the regression adds is the fraction explained, which is small (under 1 percent of the whole transcriptome in median) and larger in fast non-ventilated deaths than in the other two states.
+With `method = "regression"` the sample's z profile is regressed jointly on the consensus vectors of the axes. This adds the coefficients and the fraction of the sample's deviation from the tissue centroid explained by the axes. Classification is the same as with the signature score; what the regression adds is the fraction explained. Over the signature genes it is 8-18 percent in median in GTEx; over the whole transcriptome it is under 1 percent, and it is only computed when the reference is a cohort that carries the whole transcriptome (the example carries the signature genes only, so `r2_total` is `NA` here). It is measured against the centroid of the reference tissue, so a sample at the centroid has a fraction near zero whatever its state, and it is larger in fast non-ventilated deaths than in the other two states.
 
 ```{r regression}
-rg <- thanatome_score(ctl, reference = ctl, method = "regression")
+rg <- thanatome_score(ctl, reference = "ovary", method = "regression")
 summary(rg$r2_signature)
-tapply(rg$r2_total, ctl$hardy, median)
+tapply(rg$r2_signature, ctl$hardy, median)
 ```
 
 # A decision workflow for including or excluding controls
@@ -128,7 +139,7 @@ as.data.frame(cc$summary)
 The same comparison can carry a master-regulator analysis: pass as `mra` a function that takes the DE table of one run and returns a named vector of regulator activities (a wrapper around viper or NaRnEA); the agreement of each criterion with the full set, and of the random subsets, is added to the summary. The regulators themselves can be annotated with `annotate_mra()`, which reports how much of each regulon lies in the death axes and in which direction.
 
 ```{r mra}
-sig <- thanatome_firmas("ventilator")
+sig <- death_signatures("ventilator")
 regs <- list(TF_vent = list(tfmode = setNames(rep(1, 30), sig$ensembl[sig$direction == "up"][1:30])),
              TF_other = paste0("ENSG0000000", seq_len(40)))
 annotate_mra(c(TF_vent = 3.1, TF_other = 0.2), regs, axes = c("ventilator", "agony"))
@@ -145,11 +156,15 @@ rep <- audit_report(sc, selection = select_samples(sc, preset = "no_agony"), com
 `annotate_de()` adds to each gene the axis and direction it falls in, the consensus log fold change and the change in the tumour-versus-control log fold change expected when the control subset moves from non-ventilated to ventilated donors (or from fast to slow deaths), which within GTEx equals the contrast between the two subsets of controls.
 
 ```{r annotate}
-sig <- thanatome_firmas("ventilator")
+sig <- death_signatures("ventilator")
 de <- data.frame(logFC = c(0.2, 2.5, -1), adj.P.Val = c(0.01, 0.001, 0.04),
                  row.names = c(sig$ensembl[1], sig$ensembl[2], "ENSG00000000003"))
 annotate_de(de, axes = c("ventilator", "agony"))
 ```
+
+# References
+
+<div id="refs"></div>
 
 # Session information
 

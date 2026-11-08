@@ -1,6 +1,6 @@
 script: build_example
-date: 2026-11-08 11:19 CST
-gtex-controls commit: 01c1f811946a31afe7809e23fb5ebdf63c6ff2fa
+date: 2026-11-08 12:23 CST
+analysis repository commit: 85b470acd814483834e5e1bd4257d9408fb05f5c
 
 R version 4.5.2 (2025-10-31)
 Platform: x86_64-conda-linux-gnu
@@ -10,7 +10,10 @@ Matrix products: default
 BLAS/LAPACK: /scratch/home/hachepunto/miniforge/envs/bio/lib/libopenblasp-r0.3.30.so;  LAPACK version 3.12.0
 
 locale:
-[1] C
+ [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
+ [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
+ [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
+[10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
 
 time zone: America/Mexico_City
 tzcode source: system (glibc)

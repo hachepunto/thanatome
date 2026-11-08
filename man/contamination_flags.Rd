@@ -4,32 +4,45 @@
 \alias{contamination_flags}
 \title{Technical contamination flags per sample}
 \usage{
-contamination_flags(z, flags = NULL, threshold = 2, lung = FALSE)
+contamination_flags(
+  x,
+  threshold = 4,
+  lung = FALSE,
+  assay = "counts",
+  lib_size = NULL,
+  log = FALSE
+)
 }
 \arguments{
-\item{z}{Matrix of per-gene z-scores (genes in rows, Ensembl ids), as
-computed inside \code{\link[=thanatome_score]{thanatome_score()}}.}
+\item{x}{A \code{SummarizedExperiment} or matrix of raw counts (or log2-CPM with
+\code{log = TRUE}), as in \code{\link[=thanatome_score]{thanatome_score()}}.}
 
-\item{flags}{The flag gene table (default \code{thanatome_firmas$flags}).}
-
-\item{threshold}{Mean z above which the flag is raised. Default 2.}
+\item{threshold}{Mean log2-CPM above which the flag is raised. Default 4
+(about 16 CPM).}
 
 \item{lung}{Logical; \code{TRUE} disables the surfactant flag.}
+
+\item{assay, lib_size, log}{Passed to the normalisation; see
+\code{\link[=thanatome_score]{thanatome_score()}}.}
 }
 \value{
-A \code{data.frame} with logical columns \code{pancreas} and \code{surfactant}
-and the mean z of each set (\code{pancreas_z}, \code{surfactant_z}).
+A \code{data.frame} with logical columns \code{pancreas} and \code{surfactant},
+the mean log2-CPM of each set (\code{pancreas_logcpm}, \code{surfactant_logcpm})
+and the number of genes found (\code{pancreas_n}, \code{surfactant_n}). When a set
+has no gene in \code{x} the flag is \code{NA} and a message says so.
 }
 \description{
-Flags samples whose mean z-score over the pancreatic enzyme genes
-(PNLIP, CELA3A, PRSS1, CPA1, CELA2A, CTRB1; contamination of neighbouring
+Flags samples whose mean log2-CPM over the pancreatic enzyme genes
+(PNLIP, CELA3A, PRSS1, CPA1, CELA2A, CTRB1; contamination by neighbouring
 tissue, Nieuwenhuis et al. 2020) or over the surfactant genes (SFTPC,
-SFTPB, SFTPA1, SFTPA2) exceeds \code{threshold}. The surfactant flag is not
-raised for lung, where those genes are expressed physiologically.
+SFTPB, SFTPA1, SFTPA2) exceeds an absolute threshold. The threshold is a
+heuristic on absolute expression, not a z-score against the reference,
+because the reference tissues do not express these genes and a z-score
+against a near-zero standard deviation is meaningless. The surfactant flag
+is not raised for lung, where those genes are expressed physiologically.
 }
 \examples{
-data(thanatome_firmas)
-fl <- thanatome_firmas$flags
-z <- matrix(rnorm(5 * nrow(fl)), nrow(fl), 5, dimnames = list(fl$ensembl, NULL))
-contamination_flags(z, flags = fl)
+data(thanatome_example)
+fl <- contamination_flags(thanatome_example)
+table(fl$pancreas, useNA = "ifany")
 }

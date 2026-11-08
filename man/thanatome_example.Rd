@@ -8,7 +8,8 @@
 A \code{SummarizedExperiment} with 1663 genes and 114 samples.
 }
 \source{
-recount3 (GTEx v8 Ovary, RNASEQ freeze; TCGA-OV primary tumours).
+recount3 projects OVARY (GTEx v8, RNASEQ freeze) and OV (TCGA
+primary tumours), gene read counts, GENCODE v26.
 }
 \usage{
 thanatome_example
@@ -16,10 +17,12 @@ thanatome_example
 \description{
 A \code{SummarizedExperiment} with raw read counts of the signature and flag
 genes for 74 GTEx v8 ovary samples (stratified by Hardy scale) and 40
-TCGA-OV primary tumours, both from recount3 (same Monorail pipeline), with
-the full library size (\code{lib_size}, needed because only a subset of genes
-is kept), \code{group} (\code{control} or \code{tumor}), donor, Hardy scale, ischemic
-time and RIN in \code{colData}. Built by \code{data-raw/build_example.R}.
+TCGA-OV primary tumours, both from recount3 (same Monorail pipeline),
+with the full library size (\code{lib_size}, needed because only a subset of
+genes is kept), \code{group} (\code{control} or \code{tumor}), donor, Hardy scale,
+ischemic time and RIN in \code{colData}. The GTEx samples entered the
+consensus, the references and the poles, so any accuracy measured on
+them is in-sample. Built by \code{inst/scripts/build_example.R}.
 }
 \examples{
 data(thanatome_example)

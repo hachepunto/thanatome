@@ -26,6 +26,7 @@ test_that("regression adds beta and r2 columns but keeps ischemia marginal", {
     sc <- thanatome_score(ctl, reference = "ovary", method = "regression")
     expect_true(all(c("beta_ventilator", "beta_agony", "r2_signature", "r2_total") %in% colnames(sc)))
     expect_false("beta_ischemia" %in% colnames(sc))
+    expect_true("ischemia" %in% colnames(sc))
     expect_true(all(sc$r2_signature >= 0 & sc$r2_signature <= 1))
     expect_true(all(is.na(sc$r2_total)))
     expect_gt(cor(sc$beta_ventilator, sc$ventilator), 0.8)
@@ -34,15 +35,16 @@ test_that("regression adds beta and r2 columns but keeps ischemia marginal", {
 test_that("a cohort reference works, with poles when hardy is present", {
     sc <- thanatome_score(ctl, reference = ctl, method = "regression")
     expect_false(any(is.na(sc$position_ventilator)))
-    expect_true(all(sc$r2_total > 0 & sc$r2_total < 1))
+    expect_true(all(is.na(sc$r2_total)))   # la cohorte del ejemplo no trae el transcriptoma completo
+    expect_true(all(sc$r2_signature > 0 & sc$r2_signature < 1))
     m <- SummarizedExperiment::assay(ctl)
-    expect_message(sc2 <- thanatome_score(m, reference = m), "hardy")
+    expect_message(sc2 <- suppressWarnings(thanatome_score(m, reference = m, lib_size = ctl$lib_size)), "hardy")
     expect_true(all(is.na(sc2$state)))
 })
 
 test_that("matrix input and already-log input give the same scores", {
     m <- SummarizedExperiment::assay(ctl)
-    a <- thanatome_score(m, reference = "ovary")
-    b <- thanatome_score(edgeR::cpm(m, log = TRUE, prior.count = 1), reference = "ovary", log = TRUE)
+    a <- thanatome_score(m, reference = "ovary", lib_size = ctl$lib_size)
+    b <- thanatome_score(edgeR::cpm(m, lib.size = ctl$lib_size, log = TRUE, prior.count = 1), reference = "ovary", log = TRUE)
     expect_equal(a$ventilator, b$ventilator)
 })

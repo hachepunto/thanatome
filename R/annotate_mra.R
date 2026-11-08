@@ -19,9 +19,11 @@
 #' @param regulons A list named by regulator. Each element is either a list
 #'   with a named numeric `tfmode` (viper format; `likelihood` is ignored),
 #'   a named numeric vector of modes, or a character vector of target gene
-#'   ids (mode +1). Gene ids are
-#'   Ensembl, with or without version.
-#' @param axes Axes to annotate.
+#'   ids (mode +1). Gene ids are Ensembl, with or without version; HGNC
+#'   symbols are mapped to Ensembl through the signature table when no
+#'   Ensembl id is found, with a message.
+#' @param axes Axes to annotate (default the two axes; `"ischemia"` adds the
+#'   component).
 #' @param min_targets Regulators with fewer targets in the universe are
 #'   dropped. Default 10.
 #' @param universe Gene universe for the Fisher test; by default the union
@@ -30,24 +32,31 @@
 #'   and per axis `frac_<axis>`, `fisher_padj_<axis>`, `direction_<axis>`,
 #'   plus `flag_control_state`.
 #' @examples
-#' sig <- thanatome_firmas("ventilator")
+#' sig <- death_signatures("ventilator")
 #' up <- sig$ensembl[sig$direction == "up"][1:30]
 #' regs <- list(TF_vent = list(tfmode = setNames(rep(1, 30), up)),
 #'              TF_other = list(tfmode = setNames(rep(1, 30), paste0("ENSG", seq_len(30)))))
 #' annotate_mra(c(TF_vent = 3.2, TF_other = -1.1), regs)
 #' @export
-annotate_mra <- function(nes, regulons, axes = c("ventilator", "ischemia", "agony"), min_targets = 10, universe = NULL) {
-    axes <- match.arg(axes, several.ok = TRUE)
+annotate_mra <- function(nes, regulons, axes = c("ventilator", "agony"), min_targets = 10, universe = NULL) {
+    axes <- match.arg(axes, c("ventilator", "agony", "ischemia"), several.ok = TRUE)
     if (is.data.frame(nes)) nes <- setNames(nes$nes, nes$regulator)
     modes <- lapply(regulons, function(r) {
         tf <- if (is.list(r)) r$tfmode else if (is.numeric(r) && !is.null(names(r))) r else setNames(rep(1, length(r)), r)
         names(tf) <- sub("\\..*$", "", names(tf)); tf
     })
+    all_ids <- unique(unlist(lapply(modes, names)))
+    if (mean(grepl("^ENSG", all_ids)) < 0.5) {   # símbolos HGNC: se mapean por la tabla de firmas
+        message("annotate_mra: target ids do not look like Ensembl; mapping symbols through the signature table")
+        full <- .signatures()$signatures; map <- setNames(full$ensembl, full$symbol)
+        modes <- lapply(modes, function(tf) { e <- unname(map[names(tf)]); keep <- !is.na(e); setNames(tf[keep], e[keep]) })
+    }
     if (is.null(universe)) universe <- unique(unlist(lapply(modes, names)))
     universe <- sub("\\..*$", "", universe)
     modes <- lapply(modes, function(tf) tf[names(tf) %in% universe])
     modes <- modes[vapply(modes, length, integer(1)) >= min_targets]
-    sig <- thanatome_firmas(axes)
+    if (!length(modes)) stop("no regulon has at least ", min_targets, " targets in the universe (after id mapping)")
+    sig <- death_signatures(axes)
     per_axis <- function(a) {
         s <- sig[sig$axis == a, ]; in_axis <- universe %in% s$ensembl
         rows <- lapply(modes, function(tf) {

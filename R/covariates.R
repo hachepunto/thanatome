@@ -9,7 +9,7 @@
 #' label can be used there, but a continuous adjustment is the honest use of
 #' these scores.
 #'
-#' Two cautions are printed once. First, the axes vary only among the
+#' Two cautions are printed on each call unless `quiet = TRUE`. First, the axes vary only among the
 #' post-mortem samples: in a tumour-versus-control design every tumour sits
 #' at the same (undefined) value, so adjusting across groups partially
 #' confounds the death axes with the group effect; adjust within controls,
@@ -19,7 +19,8 @@
 #' between post-mortem and living tissue.
 #'
 #' @param scores The `DataFrame` returned by [thanatome_score()].
-#' @param axes Columns to export (default the three signature scores).
+#' @param axes Columns to export (default the two axes and the ischemia
+#'   component).
 #' @param center Logical; centre each column (default `TRUE`).
 #' @param quiet Logical; `TRUE` suppresses the cautions.
 #' @return A numeric matrix with the samples in rows.
@@ -31,8 +32,11 @@
 #' head(cv)
 #' ## e.g. limma::removeBatchEffect(logcpm, covariates = cv)
 #' @export
-death_covariates <- function(scores, axes = c("ventilator", "ischemia", "agony"), center = TRUE, quiet = FALSE) {
+death_covariates <- function(scores, axes = c("ventilator", "agony", "ischemia"), center = TRUE, quiet = FALSE) {
+    missing_axes <- setdiff(axes, colnames(scores))
+    if (length(missing_axes)) warning("not in 'scores': ", paste(missing_axes, collapse = ", "))
     axes <- intersect(axes, colnames(scores))
+    if (!length(axes)) stop("no requested axis found in 'scores'")
     m <- as.matrix(as.data.frame(scores[, axes, drop = FALSE]))
     rownames(m) <- rownames(scores)
     if (center) m <- scale(m, center = TRUE, scale = FALSE)

@@ -5,7 +5,7 @@ bibentry(
     title    = "thanatome: Donor Death Signatures for Post-Mortem Control Tissue",
     author   = c(person("Hugo", "Tovar"),
                  person("Camila", "Barrios-Cervantes"),
-                 person("Daniel", "Pérez-Calixto"),
+                 person("Daniel", "P\u00e9rez-Calixto"),
                  person("Enrique", "Hernandez-Lemus")),
     year     = "2026",
     note     = if (is.null(meta$Version)) "R package" else

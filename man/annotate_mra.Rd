@@ -7,7 +7,7 @@
 annotate_mra(
   nes,
   regulons,
-  axes = c("ventilator", "ischemia", "agony"),
+  axes = c("ventilator", "agony"),
   min_targets = 10,
   universe = NULL
 )
@@ -20,10 +20,12 @@ NaRnEA or similar), or a \code{data.frame} with columns \code{regulator} and
 \item{regulons}{A list named by regulator. Each element is either a list
 with a named numeric \code{tfmode} (viper format; \code{likelihood} is ignored),
 a named numeric vector of modes, or a character vector of target gene
-ids (mode +1). Gene ids are
-Ensembl, with or without version.}
+ids (mode +1). Gene ids are Ensembl, with or without version; HGNC
+symbols are mapped to Ensembl through the signature table when no
+Ensembl id is found, with a message.}
 
-\item{axes}{Axes to annotate.}
+\item{axes}{Axes to annotate (default the two axes; \code{"ischemia"} adds the
+component).}
 
 \item{min_targets}{Regulators with fewer targets in the universe are
 dropped. Default 10.}
@@ -49,7 +51,7 @@ differential activity may reflect the state of the controls rather than
 the cases.
 }
 \examples{
-sig <- thanatome_firmas("ventilator")
+sig <- death_signatures("ventilator")
 up <- sig$ensembl[sig$direction == "up"][1:30]
 regs <- list(TF_vent = list(tfmode = setNames(rep(1, 30), up)),
              TF_other = list(tfmode = setNames(rep(1, 30), paste0("ENSG", seq_len(30)))))

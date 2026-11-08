@@ -3,6 +3,4 @@
 ^.*\.Rcheck$
 ^.*\.tar\.gz$
 ^.*\.BiocCheck$
-^LICENSE\.md$
-^data-raw$
 ^\.github$

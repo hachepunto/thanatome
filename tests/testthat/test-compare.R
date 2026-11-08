@@ -9,7 +9,8 @@ test_that("compare_controls runs criteria against random subsets and reports MRA
                            reference = "ovary", n_random = 2, mra = toy_mra)
     s <- cc$summary
     expect_equal(s$criterion, c("all", "perfused", "no_agony"))
-    expect_equal(s$n_controls[1], sum(thanatome_example$group == "control"))
+    expect_equal(s$n_controls[1], length(select_samples(cc$scores)$keep))   # controles sin bandera técnica
+    expect_lte(s$n_controls[1], sum(thanatome_example$group == "control"))
     expect_true(all(s$n_controls[-1] < s$n_controls[1]))
     expect_equal(s$lost[1], 0); expect_equal(s$gained[1], 0)
     expect_true(all(!is.na(s$lost_random[-1])))
@@ -20,10 +21,10 @@ test_that("compare_controls runs criteria against random subsets and reports MRA
 })
 
 test_that("annotate_mra flags regulons made of signature genes", {
-    sig <- thanatome_firmas("ventilator")
+    sig <- death_signatures("ventilator")
     up <- sig$ensembl[sig$direction == "up"][1:30]; down <- sig$ensembl[sig$direction == "down"][1:30]
     regs <- list(TF_up = list(tfmode = setNames(rep(1, 30), up)), TF_down = list(tfmode = setNames(rep(1, 30), down)),
-                 TF_other = setNames(rep(1, 40), paste0("ENSG0000000", 1:40)))
+                 TF_other = setNames(rep(1, 40), paste0("ENSG0000000", seq_len(40))))
     a <- annotate_mra(c(TF_up = 2, TF_down = -2, TF_other = 0.1), regs, axes = "ventilator")
     expect_equal(a$frac_ventilator[a$regulator == "TF_up"], 1)
     expect_equal(a$direction_ventilator[a$regulator == "TF_up"], 1)
@@ -34,7 +35,8 @@ test_that("annotate_mra flags regulons made of signature genes", {
 test_that("audit_report prints and returns lines", {
     ctl <- thanatome_example[, thanatome_example$group == "control"]
     sc <- thanatome_score(ctl, reference = "ovary")
-    out <- capture.output(r <- audit_report(sc, selection = select_samples(sc, preset = "no_agony")))
+    r <- audit_report(sc, selection = select_samples(sc, preset = "no_agony"))
+    out <- capture.output(print(r))
     expect_true(any(grepl("Selection", out)))
-    expect_type(r, "character")
+    expect_s3_class(r, "thanatome_report")
 })

@@ -21,18 +21,21 @@ Authors@R: c(
     person("Instituto Nacional de Medicina Genómica", role = "fnd",
            comment = c(ROR = "https://ror.org/01qjckx08")))
 Description: Annotates each sample of a post-mortem tissue cohort (GTEx or
-    similar) with its position along three transcriptional axes of donor
-    death derived from GTEx v8 across ten tissues: ventilator (perfused
-    versus post-mortem), post-mortem ischemia and prolonged agony. For every
-    sample it returns a signature score per axis, a position scaled between
-    the two reference poles of the same tissue, the fraction of the sample's
-    deviation from the tissue centroid that lies along the death axes, a
-    state label and technical contamination flags. Samples can then be
-    plotted, selected or excluded with explicit criteria, and the per-sample
-    scores can be used as covariates in differential-expression designs or
-    batch-correction tools. A second group of functions annotates an existing
-    differential-expression table with the death axes its genes fall in and
-    the change in log fold change expected when the control subset changes.
+    similar) with its position along two transcriptional axes of donor death
+    derived from GTEx v8 across ten tissues, ventilator (perfused versus
+    post-mortem) and prolonged agony, plus the ischemia component of the
+    ventilator axis. For every sample it returns a signature score per axis,
+    a position scaled between the two reference poles of the same tissue, the
+    fraction of the sample's deviation from the tissue centroid that lies
+    along the axes, a state label and technical contamination flags. Samples
+    can then be plotted, selected with explicit criteria, and the per-sample
+    scores used as covariates in differential-expression designs or
+    batch-correction tools. compare_controls() repeats a case-versus-control
+    differential expression with each candidate control subset against
+    random subsets of the same size, optionally carrying a master-regulator
+    analysis; annotate_de() and annotate_mra() annotate existing
+    differential-expression and regulator tables with the axes their genes
+    fall in; audit_report() writes the summary for a supplement.
 License: MIT + file LICENSE
 Encoding: UTF-8
 biocViews: Software, QualityControl, Transcriptomics, RNASeq, GeneExpression,
@@ -43,7 +46,7 @@ Depends:
     SummarizedExperiment
 Imports:
     S4Vectors,
-    edgeR,
+    edgeR (>= 4.0.0),
     ggplot2,
     methods,
     stats,
@@ -59,4 +62,5 @@ VignetteBuilder: knitr
 URL: https://github.com/hachepunto/thanatome
 BugReports: https://github.com/hachepunto/thanatome/issues
 LazyData: false
+Date: 2026-11-08
 RoxygenNote: 7.3.3

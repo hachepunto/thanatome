@@ -24,12 +24,13 @@ test_that("plots are ggplot objects", {
 test_that("death_covariates returns a centred matrix", {
     cv <- death_covariates(sc, quiet = TRUE)
     expect_equal(dim(cv), c(nrow(sc), 3))
+    expect_warning(death_covariates(sc, axes = c("ventilator", "nope"), quiet = TRUE), "nope")
     expect_equal(unname(colMeans(cv)), c(0, 0, 0), tolerance = 1e-12)
     expect_message(death_covariates(sc), "within")
 })
 
 test_that("annotate_de annotates signature genes and flags sign dependence", {
-    sig <- thanatome_firmas("ventilator")
+    sig <- death_signatures("ventilator")
     de <- data.frame(logFC = c(0.1, 3), adj.P.Val = c(0.01, 0.01), row.names = c(sig$ensembl[1], "ENSG00000000003"))
     a <- annotate_de(de)
     expect_equal(a$axis_ventilator[1], sig$direction[1])

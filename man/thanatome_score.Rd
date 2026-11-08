@@ -7,78 +7,106 @@
 thanatome_score(
   x,
   reference,
-  axes = c("ventilator", "ischemia", "agony"),
+  axes = c("ventilator", "agony"),
   method = c("signature", "regression"),
   assay = "counts",
   log = FALSE,
   lib_size = NULL,
-  state_threshold = 0.5
+  state_threshold = 0.5,
+  flag_threshold = 4
 )
 }
 \arguments{
-\item{x}{A \code{SummarizedExperiment} with raw counts in \code{assay(x, assay)},
-or a numeric matrix of raw counts (genes in rows, Ensembl ids with or
-without version). Set \code{log = TRUE} if the values are already
-log2-normalised.}
+\item{x}{A \code{SummarizedExperiment} with raw counts in \code{assay(x, assay)}, or
+a numeric matrix of raw counts (genes in rows, Ensembl ids with or
+without version, samples with names). Set \code{log = TRUE} if the values are
+already log2-CPM (prior count 1, full library size); VST or rlog values
+are not comparable with the reference.}
 
 \item{reference}{Either the name of a GTEx tissue (see
-\code{names(thanatome_referencias)}), or a \code{SummarizedExperiment} / count
+\code{names(thanatome_references)}), or a \code{SummarizedExperiment} / count
 matrix of the same tissue to be used as cohort reference.}
 
-\item{axes}{Axes to score: any of \code{"ventilator"}, \code{"ischemia"},
-\code{"agony"}.}
+\item{axes}{Axes to score: \code{"ventilator"}, \code{"agony"} or both (default).
+The ischemia component is always reported.}
 
 \item{method}{\code{"signature"} (default) or \code{"regression"}. The regression
-adds the columns \verb{beta_*}, \code{r2_signature} and \code{r2_total} (the latter
-only with a cohort reference, which covers all genes); positions and
-labels always come from the signature score.}
+adds \code{beta_ventilator}, \code{beta_agony}, \code{r2_signature} (over the signature
+genes) and \code{r2_total} (over all genes of the reference; \code{NA} unless the
+reference is a cohort with at least 10 000 genes). Positions and labels
+always come from the signature score.}
 
 \item{assay}{Name of the assay with counts when \code{x} is a
 \code{SummarizedExperiment}.}
 
-\item{log}{Logical; \code{TRUE} if \code{x} already holds log2-normalised values.}
+\item{log}{Logical; \code{TRUE} if \code{x} already holds log2-CPM values.}
 
-\item{lib_size}{Optional library sizes (one per sample) for the CPM
-normalisation, needed when \code{x} holds only a subset of the genes (as the
-example data do). If \code{NULL}, a \code{lib_size} column of \code{colData(x)} is used
-when present, and the column sums otherwise.}
+\item{lib_size}{Optional library sizes of the samples of \code{x} (one per
+column) for the CPM normalisation, needed when \code{x} holds only a subset
+of the genes (as the example data do). If \code{NULL}, a \code{lib_size} column of
+\code{colData(x)} is used when present, and the column sums otherwise; a
+warning is given when \code{x} has fewer than 10 000 genes and no library
+sizes. A cohort reference always uses its own \code{lib_size} column or its
+column sums.}
 
 \item{state_threshold}{Position above which a sample is labelled
 non-perfused (ventilator axis) or in agony (agony axis). Default 0.5.}
+
+\item{flag_threshold}{Mean log2-CPM above which a contamination flag is
+raised; see \code{\link[=contamination_flags]{contamination_flags()}}.}
 }
 \value{
 A \code{DataFrame} (one row per sample) with the signature scores
-(\code{ventilator}, \code{ischemia}, \code{agony}), \code{position_ventilator},
-\code{position_agony}, \code{state}, \code{flag_pancreas}, \code{flag_surfactant}, the
-regression columns when requested, and \code{n_genes} used per axis. Its
-\code{metadata()} records the reference, the method and, when the input
-carries a \code{hardy} column, the AUC of each score against the Hardy label
-as an internal check.
+(\code{ventilator}, \code{agony}, \code{ischemia}), \code{position_ventilator},
+\code{position_agony}, \code{state} (\code{perfused}, \code{postmortem_rapid},
+\code{postmortem_agony}, or \code{postmortem} when the agony axis is not
+available), \code{flag_pancreas}, \code{flag_surfactant}, the regression columns
+when requested, and \code{n_genes} used per score. The raw \code{ventilator} score
+grows towards the perfused pole; the position inverts it so that 1 is
+post-mortem. \code{metadata()} records the reference, the method, the poles
+and, when \code{x} carries a \code{hardy} column, the AUC of each score against
+the Hardy label and the agreement of the state label, as an internal
+check (in-sample if the samples are GTEx).
 }
 \description{
 For every sample, computes a signature score per death axis (mean of the
-per-gene z-scores, with the sign of the consensus), the position scaled
-between the two poles of the reference tissue (0 = ventilated / fast
-deaths, 1 = non-ventilated / slow deaths; values outside 0-1 are allowed
-and meaningful: living tissue falls below 0 on the ventilator axis), a
-state label, technical contamination flags and, with
-\code{method = "regression"}, the coefficients of the joint regression of the
-sample's z profile on the consensus vectors and the fraction of the
-sample's deviation from the tissue centroid explained by the axes.
+per-gene z-scores against the reference, with the sign of the consensus),
+the position scaled between the two poles of the reference tissue (0 =
+ventilated donors / fast deaths, 1 = non-ventilated donors / slow deaths;
+values outside 0-1 are allowed and meaningful: living tissue falls below 0
+on the ventilator axis), a state label and technical contamination flags.
+With \code{method = "regression"} it adds the coefficients of the joint
+regression of the sample's z profile on the consensus vectors and the
+fraction of the sample's deviation from the tissue centroid explained by
+the axes.
 }
 \details{
-A reference of the same tissue is mandatory: a sample has no position on
-its own, since z-scores are computed per gene against a centroid. Use the
-name of one of the ten GTEx tissues for GTEx-like data, or your own cohort
-(a \code{SummarizedExperiment} or count matrix with at least 20 samples) when
-the platform or protocol differs; in that case the poles are estimated
-from the cohort if its \code{colData} carries a \code{hardy} (or \code{DTHHRDY}) column,
-and are \code{NA} otherwise.
+\strong{Reference.} A reference of the same tissue is mandatory: a sample has
+no position on its own, since z-scores are computed per gene against a
+centroid. The packaged references (\code{names(thanatome_references)}) were
+built from GTEx v8 counts quantified by the recount3 Monorail pipeline
+(GENCODE v26) and apply to data quantified the same way; for another
+pipeline, platform or protocol pass your own cohort (a
+\code{SummarizedExperiment} or count matrix, at least 20 samples) as
+\code{reference}: the centroid and, if its \code{colData} carries a \code{hardy} (or
+\code{DTHHRDY}) column, the poles are estimated from it. Without Hardy the
+positions and labels are \code{NA}. Scores are rank-stable across pipelines;
+positions are not.
 
-Ischemia is always reported as the marginal signature score, never as a
-joint regression coefficient: in GTEx ventilator cases and ischemic time
-are confounded and the joint coefficient loses its meaning. The ischemia
-score tracks ischemic time only among perfused (ventilated) donors.
+\strong{Ischemia.} Ischemia is not a third axis. Its signature (86 genes) is
+mostly a subset of the ventilator signature with the opposite sign, and
+only 10-23 of its genes are expressed per tissue. It is reported as the
+column \code{ischemia}, the component of the ventilator axis sensitive to
+post-mortem ischemic time, and it tracks ischemic time only among perfused
+(ventilated) donors (partial Spearman correlation with ischemic time given
+the ventilator score 0.20-0.50 within GTEx Hardy 0). It never enters the
+joint regression as a coefficient.
+
+\strong{Reliability.} With signatures derived without the scored tissue, the
+ventilator score recovers the Hardy 0 label with AUC 0.87-0.94 and the
+agony score the Hardy 3-4 label with AUC 0.69-0.90; the state label is
+right for 61-84 percent of samples in unseen donors, against 45-80 percent
+for the majority class, and its weak side is rapid versus agony.
 }
 \examples{
 data(thanatome_example)
@@ -88,5 +116,6 @@ head(sc)
 S4Vectors::metadata(sc)$auc
 }
 \seealso{
-\code{\link[=select_samples]{select_samples()}}, \code{\link[=plot_thanatome]{plot_thanatome()}}, \code{\link[=death_covariates]{death_covariates()}}
+\code{\link[=select_samples]{select_samples()}}, \code{\link[=plot_thanatome]{plot_thanatome()}}, \code{\link[=death_covariates]{death_covariates()}},
+\code{\link[=compare_controls]{compare_controls()}}
 }

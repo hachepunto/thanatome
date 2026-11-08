@@ -97,3 +97,19 @@ jobs:
               stop("BiocCheck is not clean")
           }
         shell: Rscript {0}
+
+  devel:
+    runs-on: ubuntu-latest
+    name: Bioconductor devel (docker)
+    container: bioconductor/bioconductor_docker:devel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          BiocManager::install(c("SummarizedExperiment", "S4Vectors", "edgeR", "ggplot2", "limma", "BiocStyle", "knitr", "rmarkdown", "testthat", "BiocCheck"), ask = FALSE, update = FALSE)
+        shell: Rscript {0}
+      - name: Check
+        run: |
+          R CMD build .
+          R CMD check --no-manual thanatome_*.tar.gz
+        shell: bash

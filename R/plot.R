@@ -16,7 +16,7 @@
 #' @param hardy Optional vector of Hardy scale values (same order as
 #'   `scores`) drawn as point shape, to see the agreement with the label.
 #' @param label Logical; `TRUE` writes the sample names next to the points
-#'   (useful for small cohorts).
+#'   in the scatter plot (useful for small cohorts); ignored by `"ranked"`.
 #' @return A `ggplot` object.
 #' @examples
 #' data(thanatome_example)
@@ -63,6 +63,6 @@ plot_thanatome <- function(scores, type = c("scatter", "ranked"), x = "position_
 .axis_label <- function(k) {
     lab <- c(position_ventilator = "ventilator axis (0 = perfused pole, 1 = post-mortem pole)",
              position_agony = "agony axis (0 = fast deaths, 1 = slow deaths)",
-             ischemia = "ischemia score", ventilator = "ventilator score", agony = "agony score")
+             ischemia = "ischemia component (perfused samples only)", ventilator = "ventilator score", agony = "agony score")
     ifelse(k %in% names(lab), lab[k], k)
 }

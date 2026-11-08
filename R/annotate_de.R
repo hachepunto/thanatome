@@ -31,16 +31,24 @@ as_de_table <- function(de) {
 #'
 #' For each gene, adds the axis and direction in which it falls in the
 #' consensus signatures, the consensus log fold change, and the change in
-#' the tumour-versus-control log fold change expected when the control
-#' subset moves from non-ventilated to ventilated donors (ventilator axis)
-#' or from fast to slow deaths (agony axis). Within GTEx that change equals
-#' the contrast between the two subsets of controls, which the consensus of
-#' the other tissues predicts with a slope close to -1; the prediction is
-#' therefore `-lfc_consensus`. The flag `sign_depends_on_control` marks the
-#' genes whose predicted change exceeds their own log fold change.
+#' the case-versus-control log fold change expected when the control set
+#' moves from one pole to the other: from all non-ventilated to all
+#' ventilated donors (ventilator axis) or from all fast to all slow deaths
+#' (agony axis). Within GTEx that extreme change equals the contrast between
+#' the two subsets of controls, which the consensus of the other tissues
+#' predicts with a slope close to -1; the prediction is therefore
+#' `-lfc_consensus`. A move from a mixed control set to one pole is a
+#' fraction of it: scale by the share of controls that change pole
+#' (`scale`). The flag `sign_depends_on_control` marks the genes whose
+#' (scaled) predicted change exceeds their own log fold change. The
+#' ischemia component is not annotated by default: its consensus is per
+#' standard deviation of ischemic time and is not a pole-to-pole contrast.
 #'
 #' @param de A DE result accepted by [as_de_table()].
-#' @param axes Axes to annotate.
+#' @param axes Axes to annotate (default the two axes).
+#' @param scale Factor applied to the predicted change (default 1, the full
+#'   pole-to-pole swing; use for example 0.4 if 40 percent of the controls
+#'   would change pole).
 #' @param min_tissues Minimum number of concordant tissues for a gene to be
 #'   annotated (default: the signature threshold, 5).
 #' @return The `DataFrame` from [as_de_table()] with the extra columns
@@ -51,14 +59,14 @@ as_de_table <- function(de) {
 #'                  row.names = c("ENSG00000166189", "ENSG00000172409", "ENSG00000000003"))
 #' annotate_de(de)
 #' @export
-annotate_de <- function(de, axes = c("ventilator", "ischemia", "agony"), min_tissues = NULL) {
-    axes <- match.arg(axes, several.ok = TRUE)
+annotate_de <- function(de, axes = c("ventilator", "agony"), min_tissues = NULL, scale = 1) {
+    axes <- match.arg(axes, c("ventilator", "agony", "ischemia"), several.ok = TRUE)
     d <- as_de_table(de)
-    sig <- thanatome_firmas(axes)
+    sig <- death_signatures(axes)
     if (!is.null(min_tissues)) sig <- sig[sig$n_tissues >= min_tissues, ]
     cols <- lapply(axes, function(a) {
         s <- sig[sig$axis == a, ]; i <- match(d$gene, s$ensembl)
-        S4Vectors::DataFrame(axis = s$direction[i], lfc_consensus = s$lfc_consensus[i], delta_lfc = -s$lfc_consensus[i])
+        S4Vectors::DataFrame(axis = s$direction[i], lfc_consensus = s$lfc_consensus[i], delta_lfc = -scale * s$lfc_consensus[i])
     })
     names(cols) <- axes
     ann <- do.call(cbind, lapply(axes, function(a) { x <- cols[[a]]; colnames(x) <- paste0(colnames(x), "_", a); x }))

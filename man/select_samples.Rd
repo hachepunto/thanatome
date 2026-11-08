@@ -20,19 +20,22 @@ select_samples(
 \item{ventilator, agony}{Numeric length-2 intervals (closed) on
 \code{position_ventilator} and \code{position_agony}; \code{NULL} means no criterion.}
 
-\item{ischemia}{Numeric length-2 interval on the raw ischemia score.}
+\item{ischemia}{Numeric length-2 interval on the raw ischemia component
+(meaningful among perfused samples only).}
 
 \item{state}{Character vector of allowed state labels.}
 
 \item{flags}{Logical; \code{TRUE} excludes samples with any technical flag.}
 
 \item{preset}{\code{"none"} (default), \code{"perfused"} (keep only samples labelled
-\code{perfused}: closest to living tissue, but in GTEx it discards 33-62
-percent of the samples depending on the tissue) or \code{"no_agony"}
-(exclude samples labelled \code{postmortem_agony}: the only axis that
-displaces controls coherently with respect to adjacent normal tissue,
-at a cost of 11-17 percent of the samples and a label whose accuracy
-is modest, AUC 0.69-0.90). Explicit intervals override the preset.}
+\code{perfused}: closest to living tissue, but in the GTEx references it
+discards the non-ventilated donors, 22-62 percent of the samples
+depending on the tissue) or \code{"no_agony"} (exclude samples labelled
+\code{postmortem_agony}: the only axis that displaces controls coherently
+with respect to adjacent normal tissue, at a cost of the Hardy 3-4
+donors, 9-17 percent of the samples, with a label that is right for
+61-84 percent of samples in unseen donors). A preset only sets \code{state}
+when \code{state} is \code{NULL}; the other criteria are combined with it.}
 }
 \value{
 A list with \code{keep} (sample names retained), \code{excluded} (a
@@ -40,8 +43,8 @@ A list with \code{keep} (sample names retained), \code{excluded} (a
 \code{summary} (counts per criterion).
 }
 \description{
-Returns the samples whose scaled positions, ischemia score, state label
-and technical flags satisfy the criteria given, together with a table of
+Returns the samples whose scaled positions, ischemia component, state
+label and technical flags satisfy the criteria given, together with a table of
 what was excluded and why. There is no default criterion: the analyses
 behind this package found that no subset of post-mortem controls is
 closer to surgical tissue than the full set except, slightly, the

@@ -27,7 +27,7 @@ plot_thanatome(
 \code{scores}) drawn as point shape, to see the agreement with the label.}
 
 \item{label}{Logical; \code{TRUE} writes the sample names next to the points
-(useful for small cohorts).}
+in the scatter plot (useful for small cohorts); ignored by \code{"ranked"}.}
 }
 \value{
 A \code{ggplot} object.

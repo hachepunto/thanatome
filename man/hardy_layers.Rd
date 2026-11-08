@@ -7,19 +7,21 @@
 hardy_layers(hardy)
 }
 \arguments{
-\item{hardy}{Integer vector of Hardy scale values (0-4; 0 = ventilator
-case, 1 = violent and fast death, 2 = fast death of natural causes,
-3 = intermediate, 4 = slow death).}
+\item{hardy}{Vector of Hardy scale values (0-4; 0 = ventilator case,
+1 = violent and fast death, 2 = fast death of natural causes,
+3 = intermediate, 4 = slow death). Integers, numerics, characters or a
+factor with those labels are accepted.}
 }
 \value{
-A \code{data.frame} with the logical labels used to derive the axes:
-\code{ventilator} (Hardy 0), \code{agony} (Hardy 3-4 versus 1-2; \code{NA} for
-ventilator cases, which were not used for this contrast) and the
-\code{state} label (\code{perfused}, \code{postmortem_rapid}, \code{postmortem_agony}).
+A \code{data.frame} with \code{hardy} as integer, the logical labels
+\code{ventilator} (Hardy 0) and \code{agony} (Hardy 3-4 versus 1-2; \code{NA} for
+ventilator cases, which were not used for that contrast) and the \code{state}
+label (\code{perfused}, \code{postmortem_rapid}, \code{postmortem_agony}).
 }
 \description{
 Map the GTEx Hardy scale to the death axes
 }
 \examples{
 hardy_layers(c(0, 1, 2, 3, 4, NA))
+hardy_layers(factor(c("0", "4")))
 }

@@ -35,8 +35,13 @@
 #'   around viper or NaRnEA). When given, the activities of each criterion
 #'   are compared with those of `all` by Spearman correlation and overlap of
 #'   the top 25 regulators.
+#' @param flags Logical; `TRUE` (default) removes the controls with a
+#'   technical flag from every subset, including `all` and the random ones,
+#'   so that all comparisons share the same pool.
 #' @param assay,lib_size,log Passed to the normalisation; see
-#'   [thanatome_score()].
+#'   [thanatome_score()]. With fewer than 5000 genes in `x`, the library
+#'   sizes are used as given and no TMM factors are computed, because TMM
+#'   assumes that most genes do not change.
 #' @return A list with `summary` (one row per criterion: controls kept, DEGs,
 #'   lost and gained with respect to `all`, the same for the random subsets,
 #'   Jaccard, standard deviation of the change in log fold change, fraction
@@ -51,28 +56,31 @@
 #' cc$summary
 #' @export
 compare_controls <- function(x, group, control = "control", criteria = list(), scores = NULL, reference = NULL,
-                             n_random = 10, padj = 0.05, lfc = 1, min_controls = 8, mra = NULL,
+                             n_random = 10, padj = 0.05, lfc = 1, min_controls = 8, mra = NULL, flags = TRUE,
                              assay = "counts", lib_size = NULL, log = FALSE) {
     g <- if (length(group) == 1 && group %in% colnames(SummarizedExperiment::colData(x))) x[[group]] else group
+    if (anyNA(g)) stop("'group' has missing values")
     is_ctrl <- g == control
+    if (is.null(colnames(x))) stop("'x' needs sample names")
     if (sum(is_ctrl) < min_controls || sum(!is_ctrl) < 2) stop("too few controls or cases")
     if (is.null(scores)) {
         if (is.null(reference)) stop("give 'scores' or a 'reference' to score the controls")
-        scores <- thanatome_score(x[, is_ctrl], reference = reference, assay = assay, lib_size = lib_size, log = log)
+        scores <- thanatome_score(x[, is_ctrl], reference = reference, assay = assay, lib_size = lib_size[is_ctrl], log = log)
     }
-    ctrl_names <- colnames(x)[is_ctrl]
-    if (!all(rownames(scores) %in% ctrl_names)) stop("'scores' must be the scores of the control samples of 'x'")
-    m <- .as_logcpm(x, assay = assay, log = TRUE, lib_size = lib_size)    # conteos crudos (log = TRUE evita normalizar aquí)
+    if (!all(rownames(scores) %in% colnames(x)[is_ctrl])) stop("'scores' must be the scores of the control samples of 'x'")
+    ## Conjunto común: controles sin bandera técnica (si flags = TRUE); 'all' y los subconjuntos al azar salen de aquí
+    ctrl_names <- select_samples(scores, flags = flags)$keep
+    m <- .as_logcpm(x, assay = assay, log = TRUE)    # conteos crudos: log = TRUE solo evita normalizar aquí
     libs <- if (!is.null(lib_size)) lib_size else if ("lib_size" %in% colnames(SummarizedExperiment::colData(x))) x$lib_size else colSums(m)
     names(libs) <- colnames(m)
     run_de <- function(keep) .de_edger(m, libs, cases = colnames(x)[!is_ctrl], controls = keep)
-    kept <- c(list(all = ctrl_names), lapply(criteria, function(k) do.call(select_samples, c(list(scores = scores), k))$keep))
+    kept <- c(list(all = ctrl_names), lapply(criteria, function(k) intersect(do.call(select_samples, c(list(scores = scores, flags = flags), k))$keep, ctrl_names)))
     too_few <- vapply(kept, length, integer(1)) < min_controls
     if (any(too_few)) { warning("criteria dropped for keeping fewer than ", min_controls, " controls: ", paste(names(kept)[too_few], collapse = ", ")); kept <- kept[!too_few] }
     de <- lapply(kept, run_de)
     deg <- function(d) d$gene[!is.na(d$padj) & d$padj <= padj & abs(d$log2FoldChange) >= lfc]
     base <- de$all; deg_base <- deg(base)
-    sig_genes <- unique(.firmas()$signatures$ensembl)
+    sig_genes <- unique(.signatures()$signatures$ensembl)
     res <- lapply(names(kept), function(k) .criterion_metrics(k, de, kept, ctrl_names, run_de, deg, deg_base, sig_genes, n_random))
     names(res) <- names(kept)
     summary <- S4Vectors::DataFrame(do.call(rbind, lapply(res, function(r) r$row)))
@@ -80,8 +88,8 @@ compare_controls <- function(x, group, control = "control", criteria = list(), s
     mra_out <- NULL
     if (!is.null(mra)) {
         act <- lapply(de, mra); act_base <- act$all
-        agree <- function(a) { common <- intersect(names(a), names(act_base)); top <- function(v) names(sort(v, decreasing = TRUE))[seq_len(min(25, length(v)))]
-            c(mra_spearman = stats::cor(a[common], act_base[common], method = "spearman"), mra_top25_overlap = length(intersect(top(a), top(act_base))) / 25) }
+        agree <- function(a) { common <- intersect(names(a), names(act_base)); k <- min(25, length(common)); top <- function(v) names(sort(v[common], decreasing = TRUE))[seq_len(k)]
+            c(mra_spearman = stats::cor(a[common], act_base[common], method = "spearman"), mra_top25_overlap = length(intersect(top(a), top(act_base))) / k) }
         ag <- t(vapply(act, agree, numeric(2)))
         rnd_ag <- t(vapply(names(kept), function(k) { r <- res[[k]]$rnd; if (!length(r)) return(c(NA_real_, NA_real_)); apply(vapply(r, function(d) agree(mra(d)), numeric(2)), 1, stats::median) }, numeric(2)))
         colnames(rnd_ag) <- paste0(colnames(ag), "_random")
@@ -112,7 +120,8 @@ compare_controls <- function(x, group, control = "control", criteria = list(), s
 .de_edger <- function(counts, libs, cases, controls) {
     cols <- c(cases, controls); y <- edgeR::DGEList(counts[, cols, drop = FALSE], lib.size = libs[cols])
     keep <- edgeR::filterByExpr(y, group = rep(c("case", "control"), c(length(cases), length(controls))))
-    y <- edgeR::normLibSizes(y[keep, , keep.lib.sizes = TRUE])
+    y <- y[keep, , keep.lib.sizes = TRUE]
+    if (nrow(counts) >= 5000) y <- edgeR::normLibSizes(y)   # TMM solo con un transcriptoma razonablemente completo
     design <- stats::model.matrix(~ rep(c(1, 0), c(length(cases), length(controls))))
     y <- edgeR::estimateDisp(y, design)
     fit <- edgeR::glmQLFit(y, design); tt <- edgeR::glmQLFTest(fit, coef = 2)$table

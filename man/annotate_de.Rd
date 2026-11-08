@@ -4,19 +4,19 @@
 \alias{annotate_de}
 \title{Annotate a differential-expression table with the death axes}
 \usage{
-annotate_de(
-  de,
-  axes = c("ventilator", "ischemia", "agony"),
-  min_tissues = NULL
-)
+annotate_de(de, axes = c("ventilator", "agony"), min_tissues = NULL, scale = 1)
 }
 \arguments{
 \item{de}{A DE result accepted by \code{\link[=as_de_table]{as_de_table()}}.}
 
-\item{axes}{Axes to annotate.}
+\item{axes}{Axes to annotate (default the two axes).}
 
 \item{min_tissues}{Minimum number of concordant tissues for a gene to be
 annotated (default: the signature threshold, 5).}
+
+\item{scale}{Factor applied to the predicted change (default 1, the full
+pole-to-pole swing; use for example 0.4 if 40 percent of the controls
+would change pole).}
 }
 \value{
 The \code{DataFrame} from \code{\link[=as_de_table]{as_de_table()}} with the extra columns
@@ -26,13 +26,18 @@ The \code{DataFrame} from \code{\link[=as_de_table]{as_de_table()}} with the ext
 \description{
 For each gene, adds the axis and direction in which it falls in the
 consensus signatures, the consensus log fold change, and the change in
-the tumour-versus-control log fold change expected when the control
-subset moves from non-ventilated to ventilated donors (ventilator axis)
-or from fast to slow deaths (agony axis). Within GTEx that change equals
-the contrast between the two subsets of controls, which the consensus of
-the other tissues predicts with a slope close to -1; the prediction is
-therefore \code{-lfc_consensus}. The flag \code{sign_depends_on_control} marks the
-genes whose predicted change exceeds their own log fold change.
+the case-versus-control log fold change expected when the control set
+moves from one pole to the other: from all non-ventilated to all
+ventilated donors (ventilator axis) or from all fast to all slow deaths
+(agony axis). Within GTEx that extreme change equals the contrast between
+the two subsets of controls, which the consensus of the other tissues
+predicts with a slope close to -1; the prediction is therefore
+\code{-lfc_consensus}. A move from a mixed control set to one pole is a
+fraction of it: scale by the share of controls that change pole
+(\code{scale}). The flag \code{sign_depends_on_control} marks the genes whose
+(scaled) predicted change exceeds their own log fold change. The
+ischemia component is not annotated by default: its consensus is per
+standard deviation of ischemic time and is not a pole-to-pole contrast.
 }
 \examples{
 de <- data.frame(logFC = c(1.2, -0.8, 0.3), adj.P.Val = c(0.01, 0.2, 0.5),

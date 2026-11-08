@@ -11,8 +11,8 @@
 #' @param selection Optional result of [select_samples()].
 #' @param comparison Optional result of [compare_controls()].
 #' @param file Optional path; the report is written there as well.
-#' @return Invisibly, the character vector with the report lines; it is also
-#'   printed.
+#' @return An object of class `thanatome_report`: the character vector with
+#'   the report lines, printed line by line when shown.
 #' @examples
 #' data(thanatome_example)
 #' ctl <- thanatome_example[, thanatome_example$group == "control"]
@@ -36,7 +36,7 @@ audit_report <- function(scores, selection = NULL, comparison = NULL, file = NUL
         s <- selection$summary
         lines <- c(lines, "", "Selection", "---------",
             sprintf("%d of %d samples kept. Excluded by criterion: %s.", s[["kept"]], s[["n"]],
-                    paste(names(s)[-(1:2)], s[-(1:2)], sep = " = ", collapse = ", ")))
+                    paste(names(s)[-c(1, 2)], s[-c(1, 2)], sep = " = ", collapse = ", ")))
     }
     if (!is.null(comparison)) {
         d <- as.data.frame(comparison$summary)
@@ -45,8 +45,16 @@ audit_report <- function(scores, selection = NULL, comparison = NULL, file = NUL
             utils::capture.output(print(d[, intersect(c("criterion", "n_controls", "n_deg", "lost", "lost_random", "gained", "gained_random", "jaccard", "jaccard_random", "sd_delta_lfc", "sd_delta_lfc_random", "frac_deg_in_axes", "sign_flips", "mra_spearman", "mra_spearman_random"), colnames(d))], digits = 3, row.names = FALSE)))
         lines <- c(lines, "A criterion whose losses and gains do not exceed those of the random subsets acts through sample size, not through the death axes.")
     }
-    lines <- c(lines, "", "No subset of post-mortem controls is closer to surgical or living tissue than the full set except, slightly, the ventilated donors; the package annotates and quantifies, it does not correct death.")
-    cat(lines, sep = "\n")
+    lines <- c(lines, "", "In GTEx v8, no subset of post-mortem controls was closer to surgical or living tissue than the full set except, slightly, the ventilated donors; the package annotates and quantifies, it does not correct death.")
     if (!is.null(file)) writeLines(lines, file)
-    invisible(lines)
+    structure(lines, class = "thanatome_report")
+}
+
+#' @rdname audit_report
+#' @param x A `thanatome_report`.
+#' @param ... Ignored.
+#' @export
+print.thanatome_report <- function(x, ...) {
+    writeLines(unclass(x))
+    invisible(x)
 }

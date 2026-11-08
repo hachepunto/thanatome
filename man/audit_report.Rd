@@ -2,9 +2,12 @@
 % Please edit documentation in R/audit_report.R
 \name{audit_report}
 \alias{audit_report}
+\alias{print.thanatome_report}
 \title{Plain-text audit report of the control samples}
 \usage{
 audit_report(scores, selection = NULL, comparison = NULL, file = NULL)
+
+\method{print}{thanatome_report}(x, ...)
 }
 \arguments{
 \item{scores}{The \code{DataFrame} from \code{\link[=thanatome_score]{thanatome_score()}}.}
@@ -14,10 +17,14 @@ audit_report(scores, selection = NULL, comparison = NULL, file = NULL)
 \item{comparison}{Optional result of \code{\link[=compare_controls]{compare_controls()}}.}
 
 \item{file}{Optional path; the report is written there as well.}
+
+\item{x}{A \code{thanatome_report}.}
+
+\item{...}{Ignored.}
 }
 \value{
-Invisibly, the character vector with the report lines; it is also
-printed.
+An object of class \code{thanatome_report}: the character vector with
+the report lines, printed line by line when shown.
 }
 \description{
 Summarises, in text and tables that can be pasted into a supplement, the
