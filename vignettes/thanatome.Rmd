@@ -1,0 +1,129 @@
+---
+title: "Annotating post-mortem control samples with thanatome"
+author: "Hugo Tovar, Camila Barrios-Cervantes, Daniel Pérez-Calixto, Enrique Hernandez-Lemus"
+date: "`r Sys.Date()`"
+output:
+  BiocStyle::html_document:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Annotating post-mortem control samples with thanatome}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!-- Asistido por Claude Code (Anthropic); ver README.md, sección Provenance. -->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 5)
+```
+
+# Introduction
+
+Post-mortem tissue from GTEx and similar resources is the usual "normal" control when a tumour cohort has no adjacent normal tissue. Those donors died in different ways: on a ventilator in intensive care (Hardy scale 0), suddenly (Hardy 1-2) or after a slow illness (Hardy 3-4), and their organs were collected hours after death. `thanatome` carries three consensus transcriptional signatures of those processes, derived from GTEx v8 across ten tissues, and uses them to annotate every sample of a cohort before any downstream analysis:
+
+- **ventilator**: ventilated versus non-ventilated donors; seen from outside GTEx it is the axis *perfused versus post-mortem*;
+- **ischemia**: post-mortem ischemic time, meaningful among perfused donors;
+- **agony**: slow versus fast deaths among non-ventilated donors.
+
+For each sample the package returns a score per axis, a position scaled between the two poles of the reference tissue, a state label and technical flags. The user can then plot the cohort, select samples with explicit criteria, or carry the scores into a design matrix.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+}
+BiocManager::install("thanatome")
+```
+
+# Scoring a cohort
+
+The example data are 67 GTEx v8 ovary samples with raw counts of the signature genes and the Hardy scale of each donor.
+
+```{r score}
+library(thanatome)
+library(SummarizedExperiment)
+data(thanatome_example)
+thanatome_example
+table(hardy = thanatome_example$hardy)
+```
+
+A reference of the same tissue is mandatory: the scores are means of per-gene z-scores, and a sample has no z-score on its own. For GTEx-like data the package carries the reference of ten tissues.
+
+```{r score2}
+sc <- thanatome_score(thanatome_example, reference = "ovary")
+sc[1:5, c("ventilator", "ischemia", "agony", "position_ventilator", "position_agony", "state")]
+```
+
+Because the example carries the Hardy scale, the function reports as an internal check how well each score recovers the label:
+
+```{r auc}
+metadata(sc)$auc
+metadata(sc)$state_agreement
+```
+
+The scaled position is 0 at the median of the ventilated donors of the reference tissue and 1 at the median of the non-ventilated ones (for agony, 0 = fast deaths, 1 = slow deaths). Values outside 0-1 are allowed: living tissue falls below 0 on the ventilator axis.
+
+# Looking at the samples
+
+```{r plot}
+plot_thanatome(sc, hardy = thanatome_example$hardy)
+```
+
+```{r ranked}
+plot_thanatome(sc, type = "ranked")
+```
+
+# Selecting samples with explicit criteria
+
+`select_samples()` applies intervals on the positions, a set of allowed state labels and the technical flags, and reports what was excluded and why. There is no default criterion: in the analyses behind the package no subset of post-mortem controls was closer to surgical or living tissue than the full set except, slightly, the ventilated donors, and every exclusion costs power. The two presets correspond to the criteria the evidence supports as explicit choices, each with its cost documented in the help page.
+
+```{r select}
+sel <- select_samples(sc, agony = c(-Inf, 0.5))
+sel$summary
+head(sel$excluded)
+keep <- thanatome_example[, sel$keep]
+keep
+```
+
+# Using the scores as covariates
+
+The scores can enter a design matrix or `limma::removeBatchEffect()` as continuous covariates. Two cautions apply: the axes vary only among post-mortem samples, so in a tumour-versus-control design adjust within controls or keep the group term; and the adjustment centres the controls at their mean, not at the living pole.
+
+```{r covariates}
+cv <- death_covariates(sc)
+head(cv)
+```
+
+```{r limma, eval = requireNamespace("limma", quietly = TRUE)}
+logcpm <- edgeR::cpm(assay(thanatome_example), log = TRUE, prior.count = 1)
+adjusted <- limma::removeBatchEffect(logcpm, covariates = cv)
+dim(adjusted)
+```
+
+# Joint regression and the fraction explained
+
+With `method = "regression"` the sample's z profile is regressed jointly on the consensus vectors of the axes. This adds the coefficients and the fraction of the sample's deviation from the tissue centroid explained by the axes (over the signature genes; over the whole transcriptome only with a cohort reference, which covers all genes). Classification is the same as with the signature score; what the regression adds is the fraction explained, which is small (under 1 percent of the whole transcriptome in median) and larger in fast non-ventilated deaths than in the other two states.
+
+```{r regression}
+rg <- thanatome_score(thanatome_example, reference = thanatome_example, method = "regression")
+summary(rg$r2_signature)
+tapply(rg$r2_total, thanatome_example$hardy, median)
+```
+
+# Annotating an existing differential-expression table
+
+`annotate_de()` adds to each gene the axis and direction it falls in, the consensus log fold change and the change in the tumour-versus-control log fold change expected when the control subset moves from non-ventilated to ventilated donors (or from fast to slow deaths), which within GTEx equals the contrast between the two subsets of controls.
+
+```{r annotate}
+sig <- thanatome_firmas("ventilator")
+de <- data.frame(logFC = c(0.2, 2.5, -1), adj.P.Val = c(0.01, 0.001, 0.04),
+                 row.names = c(sig$ensembl[1], sig$ensembl[2], "ENSG00000000003"))
+annotate_de(de, axes = c("ventilator", "agony"))
+```
+
+# Session information
+
+```{r session}
+sessionInfo()
+```

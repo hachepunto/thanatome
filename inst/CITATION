@@ -1,0 +1,14 @@
+citHeader("To cite thanatome in publications use:")
+
+bibentry(
+    bibtype  = "Manual",
+    title    = "thanatome: Donor Death Signatures for Post-Mortem Control Tissue",
+    author   = c(person("Hugo", "Tovar"),
+                 person("Camila", "Barrios-Cervantes"),
+                 person("Daniel", "Pérez-Calixto"),
+                 person("Enrique", "Hernandez-Lemus")),
+    year     = "2026",
+    note     = if (is.null(meta$Version)) "R package" else
+                   paste("R package version", meta$Version),
+    url      = "https://github.com/hachepunto/thanatome"
+)

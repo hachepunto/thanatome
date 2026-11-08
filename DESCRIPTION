@@ -1,0 +1,62 @@
+Package: thanatome
+Title: Donor Death Signatures for Post-Mortem Control Tissue
+Version: 0.99.0
+Authors@R: c(
+    person("Hugo", "Tovar",
+           email = "hatovar@inmegen.gob.mx",
+           role = c("aut", "cre", "cph"),
+           comment = c(ORCID = "0000-0002-8360-6133")),
+    person("Camila", "Barrios-Cervantes",
+           email = "paulacamilabarrioscervantes@gmail.com",
+           role = c("aut", "cph"),
+           comment = c(ORCID = "0009-0006-9971-790X")),
+    person("Daniel", "Pérez-Calixto",
+           email = "daniel_perez@ciencias.unam.mx",
+           role = c("aut", "cph"),
+           comment = c(ORCID = "0009-0004-3988-1260")),
+    person("Enrique", "Hernandez-Lemus",
+           email = "ehernandez@inmegen.gob.mx",
+           role = c("aut", "cph"),
+           comment = c(ORCID = "0000-0002-1872-1397")),
+    person("Instituto Nacional de Medicina Genómica", role = "fnd",
+           comment = c(ROR = "https://ror.org/01qjckx08")))
+Description: Annotates each sample of a post-mortem tissue cohort (GTEx or
+    similar) with its position along three transcriptional axes of donor
+    death derived from GTEx v8 across ten tissues: ventilator (perfused
+    versus post-mortem), post-mortem ischemia and prolonged agony. For every
+    sample it returns a signature score per axis, a position scaled between
+    the two reference poles of the same tissue, the fraction of the sample's
+    deviation from the tissue centroid that lies along the death axes, a
+    state label and technical contamination flags. Samples can then be
+    plotted, selected or excluded with explicit criteria, and the per-sample
+    scores can be used as covariates in differential-expression designs or
+    batch-correction tools. A second group of functions annotates an existing
+    differential-expression table with the death axes its genes fall in and
+    the change in log fold change expected when the control subset changes.
+License: MIT + file LICENSE
+Encoding: UTF-8
+biocViews: Software, QualityControl, Transcriptomics, RNASeq, GeneExpression,
+    BatchEffect, Classification, DifferentialExpression
+Roxygen: list(markdown = TRUE)
+Depends:
+    R (>= 4.5)
+Imports:
+    SummarizedExperiment,
+    S4Vectors,
+    edgeR,
+    ggplot2,
+    methods,
+    stats,
+    utils
+Suggests:
+    BiocStyle,
+    knitr,
+    rmarkdown,
+    testthat (>= 3.1.5),
+    limma
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+URL: https://github.com/hachepunto/thanatome
+BugReports: https://github.com/hachepunto/thanatome/issues
+LazyData: false
+RoxygenNote: 7.3.3

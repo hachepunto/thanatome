@@ -1,0 +1,22 @@
+script: build_firmas
+date: 2026-11-08 10:42 CST
+gtex-controls commit: f7d416c131234ee41144623b8247e1b49652fd10
+
+R version 4.5.2 (2025-10-31)
+Platform: x86_64-conda-linux-gnu
+Running under: Ubuntu 26.04 LTS
+
+Matrix products: default
+BLAS/LAPACK: /scratch/home/hachepunto/miniforge/envs/bio/lib/libopenblasp-r0.3.30.so;  LAPACK version 3.12.0
+
+locale:
+[1] C
+
+time zone: America/Mexico_City
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+loaded via a namespace (and not attached):
+[1] compiler_4.5.2
