@@ -104,9 +104,12 @@ jobs:
     container: bioconductor/bioconductor_docker:devel
     steps:
       - uses: actions/checkout@v4
+      # Las dependencias se leen de DESCRIPTION (Depends, Imports y Suggests), para que
+      # un Suggests nuevo no deje el job en rojo
       - name: Install dependencies
         run: |
-          BiocManager::install(c("SummarizedExperiment", "S4Vectors", "edgeR", "ggplot2", "limma", "BiocStyle", "knitr", "rmarkdown", "testthat", "BiocCheck"), ask = FALSE, update = FALSE)
+          BiocManager::install("remotes", ask = FALSE, update = FALSE)
+          remotes::install_deps(dependencies = TRUE, repos = BiocManager::repositories(), upgrade = "never")
         shell: Rscript {0}
       - name: Check
         run: |
