@@ -12,7 +12,7 @@ recount3 projects OVARY (GTEx v8, RNASEQ freeze) and OV (TCGA
 primary tumours), gene read counts, GENCODE v26.
 }
 \usage{
-thanatome_example
+data(thanatome_example)
 }
 \description{
 A \code{SummarizedExperiment} with raw read counts of the signature and flag

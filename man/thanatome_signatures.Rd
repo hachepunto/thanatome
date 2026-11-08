@@ -26,7 +26,7 @@ uterus and skin (lower leg); DESeq2 per tissue and Stouffer consensus,
 analysis repository \url{https://github.com/hachepunto/thanatome-manuscript}.
 }
 \usage{
-thanatome_signatures
+data(thanatome_signatures)
 }
 \description{
 Genes with a concordant sign of differential expression in at least 5 of
@@ -38,7 +38,8 @@ fast deaths, Hardy 1-2, among non-ventilated donors; > 0.5) and
 for ventilator; > 0.25 because the contrast is per standard deviation of
 ischemic time). Ischemia is not a third axis: 61 of its 86 genes belong
 to the ventilator signature with the opposite sign (\code{in_ventilator}) and
-only 10-23 are expressed per tissue; it is the component of the
+only 10-23 were expressed per tissue in the analysis (15-29 in the
+packaged recount3 references); it is the component of the
 ventilator axis sensitive to ischemic time. Built by
 \code{inst/scripts/build_signatures.R} (see \code{system.file("scripts", package = "thanatome")}).
 }

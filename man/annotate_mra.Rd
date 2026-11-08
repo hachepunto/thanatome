@@ -21,8 +21,9 @@ NaRnEA or similar), or a \code{data.frame} with columns \code{regulator} and
 with a named numeric \code{tfmode} (viper format; \code{likelihood} is ignored),
 a named numeric vector of modes, or a character vector of target gene
 ids (mode +1). Gene ids are Ensembl, with or without version; HGNC
-symbols are mapped to Ensembl through the signature table when no
-Ensembl id is found, with a message.}
+symbols are mapped to Ensembl with \code{org.Hs.eg.db} (Suggests) when the
+ids do not look like Ensembl, with a message, and the universe is
+mapped the same way.}
 
 \item{axes}{Axes to annotate (default the two axes; \code{"ischemia"} adds the
 component).}

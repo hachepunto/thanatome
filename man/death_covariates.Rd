@@ -6,7 +6,7 @@
 \usage{
 death_covariates(
   scores,
-  axes = c("ventilator", "agony", "ischemia"),
+  axes = c("ventilator", "agony"),
   center = TRUE,
   quiet = FALSE
 )
@@ -14,8 +14,10 @@ death_covariates(
 \arguments{
 \item{scores}{The \code{DataFrame} returned by \code{\link[=thanatome_score]{thanatome_score()}}.}
 
-\item{axes}{Columns to export (default the two axes and the ischemia
-component).}
+\item{axes}{Columns to export (default the two axes). The ischemia
+component can be added explicitly, but it is nearly collinear with the
+ventilator score (about -0.8 in GTEx) and only informative among
+perfused samples.}
 
 \item{center}{Logical; centre each column (default \code{TRUE}).}
 

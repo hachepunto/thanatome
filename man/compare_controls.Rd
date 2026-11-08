@@ -18,8 +18,7 @@ compare_controls(
   mra = NULL,
   flags = TRUE,
   assay = "counts",
-  lib_size = NULL,
-  log = FALSE
+  lib_size = NULL
 )
 }
 \arguments{
@@ -58,10 +57,11 @@ the top 25 regulators.}
 technical flag from every subset, including \code{all} and the random ones,
 so that all comparisons share the same pool.}
 
-\item{assay, lib_size, log}{Passed to the normalisation; see
-\code{\link[=thanatome_score]{thanatome_score()}}. With fewer than 5000 genes in \code{x}, the library
-sizes are used as given and no TMM factors are computed, because TMM
-assumes that most genes do not change.}
+\item{assay, lib_size}{Passed to the normalisation; see
+\code{\link[=thanatome_score]{thanatome_score()}}. \code{x} must hold raw counts (edgeR needs them). With
+fewer than 5000 genes in \code{x}, the library sizes are used as given and
+no TMM factors are computed, because TMM assumes that most genes do not
+change.}
 }
 \value{
 A list with \code{summary} (one row per criterion: controls kept, DEGs,

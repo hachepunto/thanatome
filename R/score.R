@@ -27,7 +27,8 @@
 #'
 #' **Ischemia.** Ischemia is not a third axis. Its signature (86 genes) is
 #' mostly a subset of the ventilator signature with the opposite sign, and
-#' only 10-23 of its genes are expressed per tissue. It is reported as the
+#' only 10-23 of its genes were expressed per tissue in the analysis (15-29
+#' in the packaged references). It is reported as the
 #' column `ischemia`, the component of the ventilator axis sensitive to
 #' post-mortem ischemic time, and it tracks ischemic time only among perfused
 #' (ventilated) donors (partial Spearman correlation with ischemic time given
@@ -36,12 +37,14 @@
 #'
 #' **Reliability.** With signatures derived without the scored tissue, the
 #' ventilator score recovers the Hardy 0 label with AUC 0.87-0.94 and the
-#' agony score the Hardy 3-4 label with AUC 0.69-0.90; the state label is
-#' right for 61-84 percent of samples in unseen donors, against 45-80 percent
-#' for the majority class, and its weak side is rapid versus agony.
+#' agony score the Hardy 3-4 label with AUC 0.69-0.90. The state label built
+#' from the joint-regression positions, in tissue not seen by the
+#' signatures, was right for 61-84 percent of samples against 45-80 percent
+#' for the majority class; its weak side is rapid versus agony.
 #'
-#' @param x A `SummarizedExperiment` with raw counts in `assay(x, assay)`, or
-#'   a numeric matrix of raw counts (genes in rows, Ensembl ids with or
+#' @param x A `SummarizedExperiment` with raw counts in `assay(x, assay)`, an
+#'   edgeR `DGEList` (its library sizes and normalisation factors are used),
+#'   or a numeric matrix of raw counts (genes in rows, Ensembl ids with or
 #'   without version, samples with names). Set `log = TRUE` if the values are
 #'   already log2-CPM (prior count 1, full library size); VST or rlog values
 #'   are not comparable with the reference.
@@ -52,8 +55,8 @@
 #'   The ischemia component is always reported.
 #' @param method `"signature"` (default) or `"regression"`. The regression
 #'   adds `beta_ventilator`, `beta_agony`, `r2_signature` (over the signature
-#'   genes) and `r2_total` (over all genes of the reference; `NA` unless the
-#'   reference is a cohort with at least 10 000 genes). Positions and labels
+#'   genes) and `r2_total` (over all genes; `NA` unless both the reference,
+#'   as a cohort, and `x` carry at least 10 000 genes). Positions and labels
 #'   always come from the signature score.
 #' @param assay Name of the assay with counts when `x` is a
 #'   `SummarizedExperiment`.
@@ -103,7 +106,8 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
     ## z por gen frente a la referencia, solo en los genes expresados en ella
     g <- intersect(rownames(m), names(ref$mean)[ref$expressed])
     if (length(g) < 50) stop("fewer than 50 reference genes found in 'x'; check that row names are Ensembl ids")
-    if (length(g) < 0.9 * sum(ref$expressed)) warning("only ", length(g), " of ", sum(ref$expressed), " reference genes are in 'x'; positions may be biased")
+    sig_ref <- intersect(sig$ensembl, names(ref$mean)[ref$expressed])
+    if (length(intersect(g, sig_ref)) < 0.9 * length(sig_ref)) warning("only ", length(intersect(g, sig_ref)), " of ", length(sig_ref), " signature genes of the reference are in 'x'; positions may be biased")
     z <- (m[g, , drop = FALSE] - ref$mean[g]) / ref$sd[g]
     z[!is.finite(z)] <- 0
     cols <- c(axes, "ischemia")
@@ -116,7 +120,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
     fl <- .flags_from_logcpm(m, threshold = flag_threshold, lung = identical(ref$tissue, "lung"))
     out$flag_pancreas <- fl$pancreas; out$flag_surfactant <- fl$surfactant
     if (method == "regression") {
-        rg <- .regression(z, sig[sig$axis %in% c(axes, "ischemia"), ], total_ss = if (ref$cohort && length(ref$mean) >= 10000) .total_ss(m, ref) else NULL)
+        rg <- .regression(z, sig[sig$axis %in% c(axes, "ischemia"), ], total_ss = if (ref$cohort && length(ref$mean) >= 10000 && nrow(m) >= 10000) .total_ss(m, ref) else NULL)
         out <- cbind(out, rg)
     }
     out$n_genes <- matrix(n_genes, nrow = nrow(out), ncol = length(cols), byrow = TRUE, dimnames = list(NULL, cols))
@@ -125,6 +129,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
     hardy <- .hardy_column(cd)
     if (!is.null(hardy)) {
         hl <- hardy_layers(hardy)
+        if (!"agony" %in% axes) hl$state[hl$state != "perfused"] <- "postmortem"
         meta$auc <- c(ventilator = if ("ventilator" %in% axes) .auc(hl$ventilator, out$ventilator) else NA,
                       agony = if ("agony" %in% axes) .auc(hl$agony, out$agony) else NA)
         meta$state_agreement <- mean(out$state == hl$state, na.rm = TRUE)
@@ -137,6 +142,10 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
 
 ## Matriz log2-CPM (prior 1) con Ensembl sin versión
 .as_logcpm <- function(x, assay = "counts", log = FALSE, lib_size = NULL) {
+    if (is(x, "DGEList")) {
+        if (is.null(lib_size)) lib_size <- x$samples$lib.size * x$samples$norm.factors
+        x <- x$counts
+    }
     m <- if (is(x, "SummarizedExperiment")) SummarizedExperiment::assay(x, assay) else as.matrix(x)
     if (is.null(rownames(m))) stop("'x' needs gene ids (Ensembl) as row names")
     rownames(m) <- sub("\\..*$", "", rownames(m))

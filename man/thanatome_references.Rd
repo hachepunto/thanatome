@@ -19,7 +19,7 @@ OVARY, BREAST, THYROID, LUNG, COLON, LIVER, PROSTATE, UTERUS and SKIN,
 RNASEQ freeze samples, one run per sample.
 }
 \usage{
-thanatome_references
+data(thanatome_references)
 }
 \description{
 For each of the ten GTEx v8 tissues used to derive the signatures: the

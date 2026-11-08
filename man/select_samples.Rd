@@ -33,8 +33,9 @@ discards the non-ventilated donors, 22-62 percent of the samples
 depending on the tissue) or \code{"no_agony"} (exclude samples labelled
 \code{postmortem_agony}: the only axis that displaces controls coherently
 with respect to adjacent normal tissue, at a cost of the Hardy 3-4
-donors, 9-17 percent of the samples, with a label that is right for
-61-84 percent of samples in unseen donors). A preset only sets \code{state}
+donors, 9-17 percent of the samples, with a label that, built from the
+joint-regression positions in tissue not seen by the signatures, was
+right for 61-84 percent of samples). A preset only sets \code{state}
 when \code{state} is \code{NULL}; the other criteria are combined with it.}
 }
 \value{

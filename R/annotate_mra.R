@@ -20,8 +20,9 @@
 #'   with a named numeric `tfmode` (viper format; `likelihood` is ignored),
 #'   a named numeric vector of modes, or a character vector of target gene
 #'   ids (mode +1). Gene ids are Ensembl, with or without version; HGNC
-#'   symbols are mapped to Ensembl through the signature table when no
-#'   Ensembl id is found, with a message.
+#'   symbols are mapped to Ensembl with `org.Hs.eg.db` (Suggests) when the
+#'   ids do not look like Ensembl, with a message, and the universe is
+#'   mapped the same way.
 #' @param axes Axes to annotate (default the two axes; `"ischemia"` adds the
 #'   component).
 #' @param min_targets Regulators with fewer targets in the universe are
@@ -46,10 +47,10 @@ annotate_mra <- function(nes, regulons, axes = c("ventilator", "agony"), min_tar
         names(tf) <- sub("\\..*$", "", names(tf)); tf
     })
     all_ids <- unique(unlist(lapply(modes, names)))
-    if (mean(grepl("^ENSG", all_ids)) < 0.5) {   # símbolos HGNC: se mapean por la tabla de firmas
-        message("annotate_mra: target ids do not look like Ensembl; mapping symbols through the signature table")
-        full <- .signatures()$signatures; map <- setNames(full$ensembl, full$symbol)
-        modes <- lapply(modes, function(tf) { e <- unname(map[names(tf)]); keep <- !is.na(e); setNames(tf[keep], e[keep]) })
+    if (mean(grepl("^ENSG", all_ids)) < 0.5) {   # símbolos HGNC: se mapean con org.Hs.eg.db (regulones y universo)
+        message("annotate_mra: target ids do not look like Ensembl; mapping symbols with org.Hs.eg.db")
+        modes <- lapply(modes, function(tf) { e <- .symbols_to_ensembl(names(tf)); keep <- !is.na(e); setNames(tf[keep], e[keep]) })
+        if (!is.null(universe)) { universe <- .symbols_to_ensembl(universe); universe <- universe[!is.na(universe)] }
     }
     if (is.null(universe)) universe <- unique(unlist(lapply(modes, names)))
     universe <- sub("\\..*$", "", universe)
@@ -77,4 +78,15 @@ annotate_mra <- function(nes, regulons, axes = c("ventilator", "agony"), min_tar
     res$flag_control_state <- apply(as.matrix(as.data.frame(res[, padj_cols, drop = FALSE])) <= 0.05, 1, any)
     rownames(res) <- NULL
     res
+}
+
+## Símbolos HGNC a Ensembl con org.Hs.eg.db (error claro si no está instalado)
+.symbols_to_ensembl <- function(symbols) {
+    if (!requireNamespace("org.Hs.eg.db", quietly = TRUE) || !requireNamespace("AnnotationDbi", quietly = TRUE)) {
+        stop("gene ids are not Ensembl; install org.Hs.eg.db to map symbols, or provide Ensembl ids")
+    }
+    keys <- intersect(unique(symbols), AnnotationDbi::keys(org.Hs.eg.db::org.Hs.eg.db, keytype = "SYMBOL"))
+    if (!length(keys)) return(rep(NA_character_, length(symbols)))
+    e <- suppressMessages(AnnotationDbi::mapIds(org.Hs.eg.db::org.Hs.eg.db, keys = keys, column = "ENSEMBL", keytype = "SYMBOL", multiVals = "first"))
+    unname(e[symbols])
 }

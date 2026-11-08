@@ -1,7 +1,7 @@
 ## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
 ## Escribe inst/scripts/sessioninfo/<name>.txt con la fecha, el commit del
 ## repositorio de análisis (si aplica) y el sessionInfo() de la corrida.
-record_session <- function(name, repo = Sys.getenv("GTEX_CONTROLS")) {
+record_session <- function(name, repo = "") {
     dir <- file.path("inst", "scripts", "sessioninfo")
     dir.create(dir, showWarnings = FALSE, recursive = TRUE)
     commit <- if (nzchar(repo)) tryCatch(system2("git", c("-C", repo, "rev-parse", "HEAD"), stdout = TRUE), error = function(e) NA_character_) else NA_character_

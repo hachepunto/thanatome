@@ -127,6 +127,8 @@ tapply(rg$r2_signature, ctl$hardy, median)
 
 The natural loop is: score the samples, filter, look at the differential expression or the master-regulator analysis, and filter again. Its weakness is that the last step selects on the outcome: a filter kept because "the DE looks better" is a filter fitted to the result. `compare_controls()` turns the loop into one pass. The candidate criteria are declared first; each one is run once; every result is compared with the one obtained with all controls **and** with random subsets of the same size, which are the yardstick for what losing samples does by itself. A criterion whose losses and gains do not exceed those of the random subsets acts through sample size, not through the death axes.
 
+The example carries only the signature genes, so the fraction of DEGs in the axes (`frac_deg_in_axes`) is close to 1 by construction; with a whole transcriptome it is the quantity of interest.
+
 ```{r compare}
 set.seed(1)
 cc <- compare_controls(thanatome_example, group = "group", control = "control",
@@ -148,7 +150,7 @@ annotate_mra(c(TF_vent = 3.1, TF_other = 0.2), regs, axes = c("ventilator", "ago
 `audit_report()` writes the whole thing as text for a supplement.
 
 ```{r report}
-rep <- audit_report(sc, selection = select_samples(sc, preset = "no_agony"), comparison = cc)
+audit_report(sc, selection = select_samples(sc, preset = "no_agony"), comparison = cc)
 ```
 
 # Annotating an existing differential-expression table

@@ -17,8 +17,9 @@ thanatome_score(
 )
 }
 \arguments{
-\item{x}{A \code{SummarizedExperiment} with raw counts in \code{assay(x, assay)}, or
-a numeric matrix of raw counts (genes in rows, Ensembl ids with or
+\item{x}{A \code{SummarizedExperiment} with raw counts in \code{assay(x, assay)}, an
+edgeR \code{DGEList} (its library sizes and normalisation factors are used),
+or a numeric matrix of raw counts (genes in rows, Ensembl ids with or
 without version, samples with names). Set \code{log = TRUE} if the values are
 already log2-CPM (prior count 1, full library size); VST or rlog values
 are not comparable with the reference.}
@@ -32,8 +33,8 @@ The ischemia component is always reported.}
 
 \item{method}{\code{"signature"} (default) or \code{"regression"}. The regression
 adds \code{beta_ventilator}, \code{beta_agony}, \code{r2_signature} (over the signature
-genes) and \code{r2_total} (over all genes of the reference; \code{NA} unless the
-reference is a cohort with at least 10 000 genes). Positions and labels
+genes) and \code{r2_total} (over all genes; \code{NA} unless both the reference,
+as a cohort, and \code{x} carry at least 10 000 genes). Positions and labels
 always come from the signature score.}
 
 \item{assay}{Name of the assay with counts when \code{x} is a
@@ -95,7 +96,8 @@ positions are not.
 
 \strong{Ischemia.} Ischemia is not a third axis. Its signature (86 genes) is
 mostly a subset of the ventilator signature with the opposite sign, and
-only 10-23 of its genes are expressed per tissue. It is reported as the
+only 10-23 of its genes were expressed per tissue in the analysis (15-29
+in the packaged references). It is reported as the
 column \code{ischemia}, the component of the ventilator axis sensitive to
 post-mortem ischemic time, and it tracks ischemic time only among perfused
 (ventilated) donors (partial Spearman correlation with ischemic time given
@@ -104,9 +106,10 @@ joint regression as a coefficient.
 
 \strong{Reliability.} With signatures derived without the scored tissue, the
 ventilator score recovers the Hardy 0 label with AUC 0.87-0.94 and the
-agony score the Hardy 3-4 label with AUC 0.69-0.90; the state label is
-right for 61-84 percent of samples in unseen donors, against 45-80 percent
-for the majority class, and its weak side is rapid versus agony.
+agony score the Hardy 3-4 label with AUC 0.69-0.90. The state label built
+from the joint-regression positions, in tissue not seen by the
+signatures, was right for 61-84 percent of samples against 45-80 percent
+for the majority class; its weak side is rapid versus agony.
 }
 \examples{
 data(thanatome_example)

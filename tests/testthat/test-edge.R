@@ -55,12 +55,30 @@ test_that("as_de_table handles limma and edgeR style tables", {
 test_that("annotate_mra maps symbols and fails clearly without regulons", {
     sig <- death_signatures("ventilator")
     regs <- list(TF = setNames(rep(1, 30), sig$symbol[seq_len(30)]))
-    expect_message(a <- annotate_mra(c(TF = 1), regs), "symbols")
-    expect_equal(a$frac_ventilator, 1)
+    skip_if_not_installed("org.Hs.eg.db")
+    expect_message(a <- annotate_mra(c(TF = 1), regs), "org.Hs.eg.db")
+    expect_gt(a$frac_ventilator, 0.8)
     expect_error(annotate_mra(c(TF = 1), list(TF = c("a", "b"))), "at least")
 })
 
-test_that("compare_controls rejects missing groups and respects flags pooling", {
+test_that("compare_controls rejects missing groups, bad criteria and non-count input", {
     bad <- thanatome_example; bad$group[1] <- NA
     expect_error(compare_controls(bad, group = "group", control = "control", reference = "ovary"), "missing")
+    expect_error(compare_controls(thanatome_example, group = "group", control = "control", reference = "ovary", criteria = list(list(preset = "perfused"))), "named list")
+    sc <- thanatome_score(ctl, reference = "ovary"); sc$flag_pancreas[1] <- NA
+    expect_message(sel <- select_samples(sc), "NA")
+    expect_true(rownames(sc)[1] %in% sel$keep)
+})
+
+test_that("state agreement collapses to postmortem without the agony axis", {
+    sc <- thanatome_score(ctl, reference = "ovary", axes = "ventilator")
+    expect_gt(S4Vectors::metadata(sc)$state_agreement, 0.7)
+    r <- audit_report(sc)
+    expect_true(any(grepl("postmortem = ", unclass(r))))
+})
+
+test_that("a DGEList input uses its library sizes", {
+    y <- edgeR::DGEList(SummarizedExperiment::assay(ctl), lib.size = ctl$lib_size)
+    a <- thanatome_score(y, reference = "ovary"); b <- thanatome_score(ctl, reference = "ovary")
+    expect_equal(a$ventilator, b$ventilator)
 })

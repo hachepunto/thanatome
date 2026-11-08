@@ -38,10 +38,11 @@
 #' @param flags Logical; `TRUE` (default) removes the controls with a
 #'   technical flag from every subset, including `all` and the random ones,
 #'   so that all comparisons share the same pool.
-#' @param assay,lib_size,log Passed to the normalisation; see
-#'   [thanatome_score()]. With fewer than 5000 genes in `x`, the library
-#'   sizes are used as given and no TMM factors are computed, because TMM
-#'   assumes that most genes do not change.
+#' @param assay,lib_size Passed to the normalisation; see
+#'   [thanatome_score()]. `x` must hold raw counts (edgeR needs them). With
+#'   fewer than 5000 genes in `x`, the library sizes are used as given and
+#'   no TMM factors are computed, because TMM assumes that most genes do not
+#'   change.
 #' @return A list with `summary` (one row per criterion: controls kept, DEGs,
 #'   lost and gained with respect to `all`, the same for the random subsets,
 #'   Jaccard, standard deviation of the change in log fold change, fraction
@@ -57,7 +58,8 @@
 #' @export
 compare_controls <- function(x, group, control = "control", criteria = list(), scores = NULL, reference = NULL,
                              n_random = 10, padj = 0.05, lfc = 1, min_controls = 8, mra = NULL, flags = TRUE,
-                             assay = "counts", lib_size = NULL, log = FALSE) {
+                             assay = "counts", lib_size = NULL) {
+    if (!is.list(criteria) || (length(criteria) && (is.null(names(criteria)) || anyDuplicated(names(criteria)) || any(names(criteria) == "")))) stop("'criteria' must be a named list with unique names")
     g <- if (length(group) == 1 && group %in% colnames(SummarizedExperiment::colData(x))) x[[group]] else group
     if (anyNA(g)) stop("'group' has missing values")
     is_ctrl <- g == control
@@ -65,16 +67,17 @@ compare_controls <- function(x, group, control = "control", criteria = list(), s
     if (sum(is_ctrl) < min_controls || sum(!is_ctrl) < 2) stop("too few controls or cases")
     if (is.null(scores)) {
         if (is.null(reference)) stop("give 'scores' or a 'reference' to score the controls")
-        scores <- thanatome_score(x[, is_ctrl], reference = reference, assay = assay, lib_size = lib_size[is_ctrl], log = log)
+        scores <- thanatome_score(x[, is_ctrl], reference = reference, assay = assay, lib_size = lib_size[is_ctrl])
     }
     if (!all(rownames(scores) %in% colnames(x)[is_ctrl])) stop("'scores' must be the scores of the control samples of 'x'")
     ## Conjunto común: controles sin bandera técnica (si flags = TRUE); 'all' y los subconjuntos al azar salen de aquí
     ctrl_names <- select_samples(scores, flags = flags)$keep
     m <- .as_logcpm(x, assay = assay, log = TRUE)    # conteos crudos: log = TRUE solo evita normalizar aquí
+    if (any(m < 0, na.rm = TRUE) || any(m != round(m), na.rm = TRUE)) stop("compare_controls needs raw counts in 'x'")
     libs <- if (!is.null(lib_size)) lib_size else if ("lib_size" %in% colnames(SummarizedExperiment::colData(x))) x$lib_size else colSums(m)
     names(libs) <- colnames(m)
     run_de <- function(keep) .de_edger(m, libs, cases = colnames(x)[!is_ctrl], controls = keep)
-    kept <- c(list(all = ctrl_names), lapply(criteria, function(k) intersect(do.call(select_samples, c(list(scores = scores, flags = flags), k))$keep, ctrl_names)))
+    kept <- c(list(all = ctrl_names), lapply(criteria, function(k) intersect(do.call(select_samples, utils::modifyList(list(scores = scores, flags = flags), as.list(k)))$keep, ctrl_names)))
     too_few <- vapply(kept, length, integer(1)) < min_controls
     if (any(too_few)) { warning("criteria dropped for keeping fewer than ", min_controls, " controls: ", paste(names(kept)[too_few], collapse = ", ")); kept <- kept[!too_few] }
     de <- lapply(kept, run_de)

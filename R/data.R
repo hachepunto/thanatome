@@ -11,7 +11,8 @@
 #' for ventilator; > 0.25 because the contrast is per standard deviation of
 #' ischemic time). Ischemia is not a third axis: 61 of its 86 genes belong
 #' to the ventilator signature with the opposite sign (`in_ventilator`) and
-#' only 10-23 are expressed per tissue; it is the component of the
+#' only 10-23 were expressed per tissue in the analysis (15-29 in the
+#' packaged recount3 references); it is the component of the
 #' ventilator axis sensitive to ischemic time. Built by
 #' `inst/scripts/build_signatures.R` (see `system.file("scripts",
 #' package = "thanatome")`).
@@ -38,6 +39,7 @@
 #'   Communications 9:490 \doi{10.1038/s41467-017-02772-x}; Nieuwenhuis TO
 #'   et al. (2020) Nature Communications 11:1933
 #'   \doi{10.1038/s41467-020-15821-9}.
+#' @usage data(thanatome_signatures)
 #' @examples
 #' data(thanatome_signatures)
 #' table(thanatome_signatures$signatures$axis, thanatome_signatures$signatures$direction)
@@ -66,6 +68,7 @@
 #'   Genome Biology 22:323 \doi{10.1186/s13059-021-02533-6}), GTEx projects
 #'   OVARY, BREAST, THYROID, LUNG, COLON, LIVER, PROSTATE, UTERUS and SKIN,
 #'   RNASEQ freeze samples, one run per sample.
+#' @usage data(thanatome_references)
 #' @examples
 #' data(thanatome_references)
 #' names(thanatome_references)
@@ -86,6 +89,7 @@
 #' @format A `SummarizedExperiment` with 1663 genes and 114 samples.
 #' @source recount3 projects OVARY (GTEx v8, RNASEQ freeze) and OV (TCGA
 #'   primary tumours), gene read counts, GENCODE v26.
+#' @usage data(thanatome_example)
 #' @examples
 #' data(thanatome_example)
 #' table(thanatome_example$group, thanatome_example$hardy, useNA = "ifany")

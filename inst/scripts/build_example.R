@@ -27,7 +27,8 @@ prepare <- function(rse, idx) {
 rg <- get_rse("OVARY", "gtex"); cg <- colData(rg)
 ok <- cg$gtex.smtsd == "Ovary" & cg$gtex.smafrze == "RNASEQ" & !duplicated(cg$gtex.sampid)
 h <- factor(cg$gtex.dthhrdy, levels = 0:4)
-quota <- pmax(round(67 * prop.table(table(h[ok]))), 6)   # proporcional por Hardy, al menos 6 por clase
+## 67 proporcionales por Hardy y al menos 6 por clase (las clases pequeñas suben a 6): 74 en total
+quota <- pmax(round(67 * prop.table(table(h[ok]))), 6)
 ig <- sort(unlist(lapply(levels(h), function(k) { i <- which(ok & h == k); sample(i, min(quota[k], length(i))) })))
 g <- prepare(rg, ig)
 rt <- get_rse("OV", "tcga"); ct <- colData(rt)

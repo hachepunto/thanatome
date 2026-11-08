@@ -22,7 +22,7 @@
 audit_report <- function(scores, selection = NULL, comparison = NULL, file = NULL) {
     meta <- S4Vectors::metadata(scores)
     fmt <- function(x, d = 2) formatC(x, digits = d, format = "f")
-    st <- table(factor(scores$state, levels = c("perfused", "postmortem_rapid", "postmortem_agony")), useNA = "ifany")
+    st <- table(factor(scores$state, levels = intersect(c("perfused", "postmortem", "postmortem_rapid", "postmortem_agony"), unique(scores$state))), useNA = "ifany")
     lines <- c("thanatome audit report", "======================",
         sprintf("Reference: %s; method: %s; %d samples.", meta$reference, meta$method, nrow(scores)),
         sprintf("States (threshold %s): %s.", fmt(meta$state_threshold, 2), paste(names(st), st, sep = " = ", collapse = ", ")),

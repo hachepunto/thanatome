@@ -23,9 +23,9 @@ test_that("plots are ggplot objects", {
 
 test_that("death_covariates returns a centred matrix", {
     cv <- death_covariates(sc, quiet = TRUE)
-    expect_equal(dim(cv), c(nrow(sc), 3))
+    expect_equal(dim(cv), c(nrow(sc), 2))
     expect_warning(death_covariates(sc, axes = c("ventilator", "nope"), quiet = TRUE), "nope")
-    expect_equal(unname(colMeans(cv)), c(0, 0, 0), tolerance = 1e-12)
+    expect_equal(unname(colMeans(cv)), c(0, 0), tolerance = 1e-12)
     expect_message(death_covariates(sc), "within")
 })
 

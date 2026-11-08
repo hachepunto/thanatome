@@ -24,8 +24,9 @@
 #'   depending on the tissue) or `"no_agony"` (exclude samples labelled
 #'   `postmortem_agony`: the only axis that displaces controls coherently
 #'   with respect to adjacent normal tissue, at a cost of the Hardy 3-4
-#'   donors, 9-17 percent of the samples, with a label that is right for
-#'   61-84 percent of samples in unseen donors). A preset only sets `state`
+#'   donors, 9-17 percent of the samples, with a label that, built from the
+#'   joint-regression positions in tissue not seen by the signatures, was
+#'   right for 61-84 percent of samples). A preset only sets `state`
 #'   when `state` is `NULL`; the other criteria are combined with it.
 #' @return A list with `keep` (sample names retained), `excluded` (a
 #'   `DataFrame` with the sample and the first criterion it failed) and
@@ -48,7 +49,8 @@ select_samples <- function(scores, ventilator = NULL, agony = NULL, ischemia = N
         agony = .in_interval(scores$position_agony, agony),
         ischemia = .in_interval(scores$ischemia, ischemia),
         state = if (is.null(state)) rep(TRUE, nrow(scores)) else !is.na(scores$state) & scores$state %in% state,
-        flags = if (!flags) rep(TRUE, nrow(scores)) else !(scores$flag_pancreas | scores$flag_surfactant))
+        flags = if (!flags) rep(TRUE, nrow(scores)) else !(scores$flag_pancreas %in% TRUE | scores$flag_surfactant %in% TRUE))
+    if (flags && (anyNA(scores$flag_pancreas) || anyNA(scores$flag_surfactant))) message("select_samples: some technical flags are NA (genes absent) and are treated as not raised")
     if (is.null(rownames(scores))) stop("'scores' has no sample names")
     pass <- Reduce(`&`, crit)
     first_fail <- apply(!do.call(cbind, crit), 1, function(r) if (any(r)) names(crit)[which(r)[1]] else NA_character_)

@@ -19,8 +19,10 @@
 #' between post-mortem and living tissue.
 #'
 #' @param scores The `DataFrame` returned by [thanatome_score()].
-#' @param axes Columns to export (default the two axes and the ischemia
-#'   component).
+#' @param axes Columns to export (default the two axes). The ischemia
+#'   component can be added explicitly, but it is nearly collinear with the
+#'   ventilator score (about -0.8 in GTEx) and only informative among
+#'   perfused samples.
 #' @param center Logical; centre each column (default `TRUE`).
 #' @param quiet Logical; `TRUE` suppresses the cautions.
 #' @return A numeric matrix with the samples in rows.
@@ -32,7 +34,7 @@
 #' head(cv)
 #' ## e.g. limma::removeBatchEffect(logcpm, covariates = cv)
 #' @export
-death_covariates <- function(scores, axes = c("ventilator", "agony", "ischemia"), center = TRUE, quiet = FALSE) {
+death_covariates <- function(scores, axes = c("ventilator", "agony"), center = TRUE, quiet = FALSE) {
     missing_axes <- setdiff(axes, colnames(scores))
     if (length(missing_axes)) warning("not in 'scores': ", paste(missing_axes, collapse = ", "))
     axes <- intersect(axes, colnames(scores))

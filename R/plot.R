@@ -63,6 +63,6 @@ plot_thanatome <- function(scores, type = c("scatter", "ranked"), x = "position_
 .axis_label <- function(k) {
     lab <- c(position_ventilator = "ventilator axis (0 = perfused pole, 1 = post-mortem pole)",
              position_agony = "agony axis (0 = fast deaths, 1 = slow deaths)",
-             ischemia = "ischemia component (perfused samples only)", ventilator = "ventilator score", agony = "agony score")
+             ischemia = "ischemia component (informative among perfused samples)", ventilator = "ventilator score", agony = "agony score")
     ifelse(k %in% names(lab), lab[k], k)
 }
