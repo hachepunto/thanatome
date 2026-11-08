@@ -17,4 +17,5 @@
 #' @importFrom stats median sd setNames lm.fit quantile
 #' @importFrom utils head
 #' @importFrom ggplot2 .data
+#' @import SummarizedExperiment
 "_PACKAGE"

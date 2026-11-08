@@ -56,7 +56,8 @@
 #'   as an internal check.
 #' @examples
 #' data(thanatome_example)
-#' sc <- thanatome_score(thanatome_example, reference = "ovary")
+#' ctl <- thanatome_example[, thanatome_example$group == "control"]
+#' sc <- thanatome_score(ctl, reference = "ovary")
 #' head(sc)
 #' S4Vectors::metadata(sc)$auc
 #' @seealso [select_samples()], [plot_thanatome()], [death_covariates()]

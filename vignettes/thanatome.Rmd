@@ -38,20 +38,21 @@ BiocManager::install("thanatome")
 
 # Scoring a cohort
 
-The example data are 67 GTEx v8 ovary samples with raw counts of the signature genes and the Hardy scale of each donor.
+The example data are 74 GTEx v8 ovary controls and 40 TCGA-OV primary tumours from recount3, with raw counts of the signature genes, the full library size of each sample and the Hardy scale of each donor. The controls are scored first; the tumours enter later, when the differential expression is repeated with different control subsets.
 
 ```{r score}
 library(thanatome)
 library(SummarizedExperiment)
 data(thanatome_example)
 thanatome_example
-table(hardy = thanatome_example$hardy)
+ctl <- thanatome_example[, thanatome_example$group == "control"]
+table(hardy = ctl$hardy)
 ```
 
 A reference of the same tissue is mandatory: the scores are means of per-gene z-scores, and a sample has no z-score on its own. For GTEx-like data the package carries the reference of ten tissues.
 
 ```{r score2}
-sc <- thanatome_score(thanatome_example, reference = "ovary")
+sc <- thanatome_score(ctl, reference = "ovary")
 sc[1:5, c("ventilator", "ischemia", "agony", "position_ventilator", "position_agony", "state")]
 ```
 
@@ -67,7 +68,7 @@ The scaled position is 0 at the median of the ventilated donors of the reference
 # Looking at the samples
 
 ```{r plot}
-plot_thanatome(sc, hardy = thanatome_example$hardy)
+plot_thanatome(sc, hardy = ctl$hardy)
 ```
 
 ```{r ranked}
@@ -82,7 +83,7 @@ plot_thanatome(sc, type = "ranked")
 sel <- select_samples(sc, agony = c(-Inf, 0.5))
 sel$summary
 head(sel$excluded)
-keep <- thanatome_example[, sel$keep]
+keep <- ctl[, sel$keep]
 keep
 ```
 
@@ -96,7 +97,7 @@ head(cv)
 ```
 
 ```{r limma, eval = requireNamespace("limma", quietly = TRUE)}
-logcpm <- edgeR::cpm(assay(thanatome_example), log = TRUE, prior.count = 1)
+logcpm <- edgeR::cpm(assay(ctl), lib.size = ctl$lib_size, log = TRUE, prior.count = 1)
 adjusted <- limma::removeBatchEffect(logcpm, covariates = cv)
 dim(adjusted)
 ```
@@ -106,9 +107,37 @@ dim(adjusted)
 With `method = "regression"` the sample's z profile is regressed jointly on the consensus vectors of the axes. This adds the coefficients and the fraction of the sample's deviation from the tissue centroid explained by the axes (over the signature genes; over the whole transcriptome only with a cohort reference, which covers all genes). Classification is the same as with the signature score; what the regression adds is the fraction explained, which is small (under 1 percent of the whole transcriptome in median) and larger in fast non-ventilated deaths than in the other two states.
 
 ```{r regression}
-rg <- thanatome_score(thanatome_example, reference = thanatome_example, method = "regression")
+rg <- thanatome_score(ctl, reference = ctl, method = "regression")
 summary(rg$r2_signature)
-tapply(rg$r2_total, thanatome_example$hardy, median)
+tapply(rg$r2_total, ctl$hardy, median)
+```
+
+# A decision workflow for including or excluding controls
+
+The natural loop is: score the samples, filter, look at the differential expression or the master-regulator analysis, and filter again. Its weakness is that the last step selects on the outcome: a filter kept because "the DE looks better" is a filter fitted to the result. `compare_controls()` turns the loop into one pass. The candidate criteria are declared first; each one is run once; every result is compared with the one obtained with all controls **and** with random subsets of the same size, which are the yardstick for what losing samples does by itself. A criterion whose losses and gains do not exceed those of the random subsets acts through sample size, not through the death axes.
+
+```{r compare}
+set.seed(1)
+cc <- compare_controls(thanatome_example, group = "group", control = "control",
+                       criteria = list(perfused = list(preset = "perfused"),
+                                       no_agony = list(preset = "no_agony")),
+                       reference = "ovary", n_random = 3)
+as.data.frame(cc$summary)
+```
+
+The same comparison can carry a master-regulator analysis: pass as `mra` a function that takes the DE table of one run and returns a named vector of regulator activities (a wrapper around viper or NaRnEA); the agreement of each criterion with the full set, and of the random subsets, is added to the summary. The regulators themselves can be annotated with `annotate_mra()`, which reports how much of each regulon lies in the death axes and in which direction.
+
+```{r mra}
+sig <- thanatome_firmas("ventilator")
+regs <- list(TF_vent = list(tfmode = setNames(rep(1, 30), sig$ensembl[sig$direction == "up"][1:30])),
+             TF_other = paste0("ENSG0000000", seq_len(40)))
+annotate_mra(c(TF_vent = 3.1, TF_other = 0.2), regs, axes = c("ventilator", "agony"))
+```
+
+`audit_report()` writes the whole thing as text for a supplement.
+
+```{r report}
+rep <- audit_report(sc, selection = select_samples(sc, preset = "no_agony"), comparison = cc)
 ```
 
 # Annotating an existing differential-expression table

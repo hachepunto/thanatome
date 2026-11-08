@@ -17,11 +17,15 @@ BiocManager::install("hachepunto/thanatome")
 
 ```r
 library(thanatome)
-data(thanatome_example)                       # 67 GTEx v8 ovary samples
-sc <- thanatome_score(thanatome_example, reference = "ovary")
-plot_thanatome(sc, hardy = thanatome_example$hardy)
+data(thanatome_example)                       # 74 GTEx ovary controls + 40 TCGA-OV tumours (recount3)
+ctl <- thanatome_example[, thanatome_example$group == "control"]
+sc <- thanatome_score(ctl, reference = "ovary")
+plot_thanatome(sc, hardy = ctl$hardy)
 sel <- select_samples(sc, agony = c(-Inf, 0.5))   # explicit criterion, no default
 cv <- death_covariates(sc)                    # for limma::removeBatchEffect or a design matrix
+cc <- compare_controls(thanatome_example, group = "group", control = "control",
+                       criteria = list(no_agony = list(preset = "no_agony")), reference = "ovary")
+audit_report(sc, selection = sel, comparison = cc)
 ```
 
 ## What the analyses behind the package say

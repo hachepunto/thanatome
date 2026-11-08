@@ -1,6 +1,7 @@
 ## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
 data(thanatome_example)
-sc <- thanatome_score(thanatome_example, reference = "ovary")
+ctl <- thanatome_example[, thanatome_example$group == "control"]
+sc <- thanatome_score(ctl, reference = "ovary")
 
 test_that("select_samples keeps everything without criteria and filters with them", {
     all <- select_samples(sc, flags = FALSE)
@@ -16,7 +17,7 @@ test_that("select_samples keeps everything without criteria and filters with the
 
 test_that("plots are ggplot objects", {
     expect_s3_class(plot_thanatome(sc), "ggplot")
-    expect_s3_class(plot_thanatome(sc, hardy = thanatome_example$hardy, label = TRUE), "ggplot")
+    expect_s3_class(plot_thanatome(sc, hardy = ctl$hardy, label = TRUE), "ggplot")
     expect_s3_class(plot_thanatome(sc, type = "ranked"), "ggplot")
 })
 

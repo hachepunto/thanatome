@@ -25,7 +25,8 @@
 #' @return A numeric matrix with the samples in rows.
 #' @examples
 #' data(thanatome_example)
-#' sc <- thanatome_score(thanatome_example, reference = "ovary")
+#' ctl <- thanatome_example[, thanatome_example$group == "control"]
+#' sc <- thanatome_score(ctl, reference = "ovary")
 #' cv <- death_covariates(sc)
 #' head(cv)
 #' ## e.g. limma::removeBatchEffect(logcpm, covariates = cv)

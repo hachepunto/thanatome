@@ -3,25 +3,26 @@
 \docType{data}
 \name{thanatome_example}
 \alias{thanatome_example}
-\title{Example data: 67 GTEx v8 ovary samples}
+\title{Example data: GTEx ovary controls and TCGA-OV tumours}
 \format{
-A \code{SummarizedExperiment} with 1522 genes and 67 samples.
+A \code{SummarizedExperiment} with 1663 genes and 114 samples.
 }
 \source{
-GTEx v8 gene read counts.
+recount3 (GTEx v8 Ovary, RNASEQ freeze; TCGA-OV primary tumours).
 }
 \usage{
 thanatome_example
 }
 \description{
 A \code{SummarizedExperiment} with raw read counts of the signature and flag
-genes for 67 GTEx v8 ovary samples stratified by Hardy scale, with the
-full library size (\code{lib_size}, needed because only a subset of genes is
-kept), donor, Hardy scale, ischemic time, RIN, sex and age in \code{colData}. GTEx v8 gene
-read counts are open access. Built by \code{data-raw/build_example.R}.
+genes for 74 GTEx v8 ovary samples (stratified by Hardy scale) and 40
+TCGA-OV primary tumours, both from recount3 (same Monorail pipeline), with
+the full library size (\code{lib_size}, needed because only a subset of genes
+is kept), \code{group} (\code{control} or \code{tumor}), donor, Hardy scale, ischemic
+time and RIN in \code{colData}. Built by \code{data-raw/build_example.R}.
 }
 \examples{
 data(thanatome_example)
-table(thanatome_example$hardy)
+table(thanatome_example$group, thanatome_example$hardy, useNA = "ifany")
 }
 \keyword{datasets}

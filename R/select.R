@@ -29,7 +29,8 @@
 #'   `summary` (counts per criterion).
 #' @examples
 #' data(thanatome_example)
-#' sc <- thanatome_score(thanatome_example, reference = "ovary")
+#' ctl <- thanatome_example[, thanatome_example$group == "control"]
+#' sc <- thanatome_score(ctl, reference = "ovary")
 #' sel <- select_samples(sc, agony = c(-Inf, 0.5))
 #' sel$summary
 #' head(sel$excluded)

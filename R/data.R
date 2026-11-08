@@ -53,17 +53,18 @@
 #' thanatome_referencias$ovary$poles
 "thanatome_referencias"
 
-#' Example data: 67 GTEx v8 ovary samples
+#' Example data: GTEx ovary controls and TCGA-OV tumours
 #'
 #' A `SummarizedExperiment` with raw read counts of the signature and flag
-#' genes for 67 GTEx v8 ovary samples stratified by Hardy scale, with the
-#' full library size (`lib_size`, needed because only a subset of genes is
-#' kept), donor, Hardy scale, ischemic time, RIN, sex and age in `colData`. GTEx v8 gene
-#' read counts are open access. Built by `data-raw/build_example.R`.
+#' genes for 74 GTEx v8 ovary samples (stratified by Hardy scale) and 40
+#' TCGA-OV primary tumours, both from recount3 (same Monorail pipeline), with
+#' the full library size (`lib_size`, needed because only a subset of genes
+#' is kept), `group` (`control` or `tumor`), donor, Hardy scale, ischemic
+#' time and RIN in `colData`. Built by `data-raw/build_example.R`.
 #'
-#' @format A `SummarizedExperiment` with 1522 genes and 67 samples.
-#' @source GTEx v8 gene read counts.
+#' @format A `SummarizedExperiment` with 1663 genes and 114 samples.
+#' @source recount3 (GTEx v8 Ovary, RNASEQ freeze; TCGA-OV primary tumours).
 #' @examples
 #' data(thanatome_example)
-#' table(thanatome_example$hardy)
+#' table(thanatome_example$group, thanatome_example$hardy, useNA = "ifany")
 "thanatome_example"

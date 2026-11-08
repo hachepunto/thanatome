@@ -42,7 +42,8 @@ that can be modified further.
 }
 \examples{
 data(thanatome_example)
-sc <- thanatome_score(thanatome_example, reference = "ovary")
-plot_thanatome(sc, hardy = thanatome_example$hardy)
+ctl <- thanatome_example[, thanatome_example$group == "control"]
+sc <- thanatome_score(ctl, reference = "ovary")
+plot_thanatome(sc, hardy = ctl$hardy)
 plot_thanatome(sc, type = "ranked")
 }
