@@ -1,4 +1,4 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
 
 #' Plain-text audit report of the control samples
 #'

@@ -1,6 +1,6 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
-## Escribe inst/scripts/sessioninfo/<name>.txt con la fecha, el commit del
-## repositorio de análisis (si aplica) y el sessionInfo() de la corrida.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
+## Writes inst/scripts/sessioninfo/<name>.txt with the date, the commit of the
+## analysis repository (if any) and the sessionInfo() of the run.
 record_session <- function(name, repo = "") {
     dir <- file.path("inst", "scripts", "sessioninfo")
     dir.create(dir, showWarnings = FALSE, recursive = TRUE)

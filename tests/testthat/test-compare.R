@@ -1,4 +1,4 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
 data(thanatome_example)
 
 set.seed(1)
@@ -9,7 +9,7 @@ test_that("compare_controls runs criteria against random subsets and reports MRA
                            reference = "ovary", n_random = 2, mra = toy_mra)
     s <- cc$summary
     expect_equal(s$criterion, c("all", "perfused", "no_agony"))
-    expect_equal(s$n_controls[1], length(select_samples(cc$scores)$keep))   # controles sin bandera técnica
+    expect_equal(s$n_controls[1], length(select_samples(cc$scores)$keep))   # controls without technical flags
     expect_lte(s$n_controls[1], sum(thanatome_example$group == "control"))
     expect_true(all(s$n_controls[-1] < s$n_controls[1]))
     expect_equal(s$lost[1], 0); expect_equal(s$gained[1], 0)

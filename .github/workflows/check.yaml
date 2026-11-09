@@ -104,8 +104,8 @@ jobs:
     container: bioconductor/bioconductor_docker:devel
     steps:
       - uses: actions/checkout@v4
-      # Las dependencias se leen de DESCRIPTION (Depends, Imports y Suggests), para que
-      # un Suggests nuevo no deje el job en rojo
+      # Dependencies are read from DESCRIPTION (Depends, Imports and Suggests), so
+      # that a new Suggests does not turn the job red
       - name: Install dependencies
         run: |
           BiocManager::install("remotes", ask = FALSE, update = FALSE)

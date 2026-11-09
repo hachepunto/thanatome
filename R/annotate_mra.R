@@ -1,4 +1,4 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
 
 #' Annotate a master-regulator table with the death axes
 #'
@@ -47,7 +47,7 @@ annotate_mra <- function(nes, regulons, axes = c("ventilator", "agony"), min_tar
         names(tf) <- sub("\\..*$", "", names(tf)); tf
     })
     all_ids <- unique(unlist(lapply(modes, names)))
-    if (mean(grepl("^ENSG", all_ids)) < 0.5) {   # símbolos HGNC: se mapean con org.Hs.eg.db (regulones y universo)
+    if (mean(grepl("^ENSG", all_ids)) < 0.5) {   # HGNC symbols: mapped with org.Hs.eg.db (regulons and universe)
         message("annotate_mra: target ids do not look like Ensembl; mapping symbols with org.Hs.eg.db")
         modes <- lapply(modes, function(tf) { e <- .symbols_to_ensembl(names(tf)); keep <- !is.na(e); setNames(tf[keep], e[keep]) })
         if (!is.null(universe)) { universe <- .symbols_to_ensembl(universe); universe <- universe[!is.na(universe)] }
@@ -80,7 +80,7 @@ annotate_mra <- function(nes, regulons, axes = c("ventilator", "agony"), min_tar
     res
 }
 
-## Símbolos HGNC a Ensembl con org.Hs.eg.db (error claro si no está instalado)
+## HGNC symbols to Ensembl with org.Hs.eg.db (clear error if not installed)
 .symbols_to_ensembl <- function(symbols) {
     if (!requireNamespace("org.Hs.eg.db", quietly = TRUE) || !requireNamespace("AnnotationDbi", quietly = TRUE)) {
         stop("gene ids are not Ensembl; install org.Hs.eg.db to map symbols, or provide Ensembl ids")

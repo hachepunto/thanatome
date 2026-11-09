@@ -1,4 +1,4 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
 
 #' Repeat a differential-expression analysis with explicit control subsets
 #'
@@ -70,9 +70,9 @@ compare_controls <- function(x, group, control = "control", criteria = list(), s
         scores <- thanatome_score(x[, is_ctrl], reference = reference, assay = assay, lib_size = lib_size[is_ctrl])
     }
     if (!all(rownames(scores) %in% colnames(x)[is_ctrl])) stop("'scores' must be the scores of the control samples of 'x'")
-    ## Conjunto común: controles sin bandera técnica (si flags = TRUE); 'all' y los subconjuntos al azar salen de aquí
+    ## Common set: controls without technical flags (if flags = TRUE); 'all' and the random subsets are drawn from it
     ctrl_names <- select_samples(scores, flags = flags)$keep
-    m <- .as_logcpm(x, assay = assay, log = TRUE)    # conteos crudos: log = TRUE solo evita normalizar aquí
+    m <- .as_logcpm(x, assay = assay, log = TRUE)    # raw counts: log = TRUE only avoids normalising here
     if (any(m < 0, na.rm = TRUE) || any(m != round(m), na.rm = TRUE)) stop("compare_controls needs raw counts in 'x'")
     libs <- if (!is.null(lib_size)) lib_size else if ("lib_size" %in% colnames(SummarizedExperiment::colData(x))) x$lib_size else colSums(m)
     names(libs) <- colnames(m)
@@ -101,7 +101,7 @@ compare_controls <- function(x, group, control = "control", criteria = list(), s
     }
     list(summary = summary, de = de, kept = kept, scores = scores, mra = mra_out, thresholds = c(padj = padj, lfc = lfc))
 }
-## Métricas de un criterio frente a todos los controles y frente a subconjuntos al azar del mismo n
+## Metrics of one criterion against all controls and against random subsets of the same n
 .criterion_metrics <- function(k, de, kept, ctrl_names, run_de, deg, deg_base, sig_genes, n_random) {
     base <- de$all; d <- de[[k]]; dk <- deg(d); n <- length(kept[[k]])
     rnd <- if (k == "all" || n >= length(ctrl_names)) list() else lapply(seq_len(n_random), function(i) run_de(sample(ctrl_names, n)))
@@ -119,12 +119,12 @@ compare_controls <- function(x, group, control = "control", criteria = list(), s
         frac_deg_in_axes = if (length(dk)) mean(dk %in% sig_genes) else NA_real_, sign_flips = flips, stringsAsFactors = FALSE)
     list(row = row, rnd = rnd)
 }
-## edgeR cuasi-verosimilitud, casos frente a controles, sin covariables
+## edgeR quasi-likelihood, cases versus controls, no covariates
 .de_edger <- function(counts, libs, cases, controls) {
     cols <- c(cases, controls); y <- edgeR::DGEList(counts[, cols, drop = FALSE], lib.size = libs[cols])
     keep <- edgeR::filterByExpr(y, group = rep(c("case", "control"), c(length(cases), length(controls))))
     y <- y[keep, , keep.lib.sizes = TRUE]
-    if (nrow(counts) >= 5000) y <- edgeR::normLibSizes(y)   # TMM solo con un transcriptoma razonablemente completo
+    if (nrow(counts) >= 5000) y <- edgeR::normLibSizes(y)   # TMM only with a reasonably complete transcriptome
     design <- stats::model.matrix(~ rep(c(1, 0), c(length(cases), length(controls))))
     y <- edgeR::estimateDisp(y, design)
     fit <- edgeR::glmQLFit(y, design); tt <- edgeR::glmQLFTest(fit, coef = 2)$table

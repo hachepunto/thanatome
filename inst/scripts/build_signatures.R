@@ -1,13 +1,13 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
-## Construye data/thanatome_signatures.rda a partir de las tablas de consenso del
-## repositorio de análisis (results/firmas/*_consenso.tsv). Ver README.md de esta carpeta.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
+## Builds data/thanatome_signatures.rda from the consensus tables of the analysis
+## repository (results/firmas/*_consenso.tsv). See the README.md of this folder.
 source("inst/scripts/record_session.R")
 repo <- Sys.getenv("GTEX_CONTROLS", unset = "~/gtex-proyect")
 min_tissues <- 5
-## |lfc mediano|: 0.5 para ventilador y agonía (umbral de la validación); 0.25 para la componente de
-## isquemia, cuyo contraste es por desviación estándar de tiempo isquémico (con 0.5 quedan 21 genes
-## casi no expresados). Isquemia no es un tercer eje: 61 de sus 86 genes están en la firma de ventilador
-## con signo opuesto; se reporta como componente del eje ventilador sensible al tiempo isquémico.
+## |median lfc|: 0.5 for ventilator and agony (validation threshold); 0.25 for the ischemia component,
+## whose contrast is per standard deviation of ischemic time (with 0.5 only 21 almost unexpressed
+## genes remain). Ischemia is not a third axis: 61 of its 86 genes are in the ventilator signature
+## with opposite sign; it is reported as the ischemic-time-sensitive component of the ventilator axis.
 min_lfc <- c(ventilator = 0.5, ischemia = 0.25, agony = 0.5)
 axes <- c(ventilator = "ventilador", ischemia = "isquemia", agony = "agonia")
 read_axis <- function(axis) {
@@ -21,7 +21,7 @@ signatures <- do.call(rbind, lapply(names(axes), read_axis))
 rownames(signatures) <- NULL
 vent <- signatures$ensembl[signatures$axis == "ventilator"]
 signatures$in_ventilator <- signatures$axis == "ischemia" & signatures$ensembl %in% vent
-## Conjuntos de banderas técnicas (contaminación de tejido vecino; Nieuwenhuis et al. 2020)
+## Technical flag sets (neighbouring-tissue contamination; Nieuwenhuis et al. 2020)
 genes <- read.delim(file.path(repo, "data", "processed", "ovary", "genes.tsv"), stringsAsFactors = FALSE)
 genes$ensembl <- sub("\\..*$", "", genes$ensembl)
 flag_sets <- list(pancreas = c("PNLIP", "CELA3A", "PRSS1", "CPA1", "CELA2A", "CTRB1"),

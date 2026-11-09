@@ -1,7 +1,7 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
-## Construye data/thanatome_references.rda desde recount3 (GTEx v8, gene, GENCODE v26):
-## por tejido, media y SD del log2-CPM de los genes de firma y de bandera, qué genes
-## están expresados (media de log2-CPM > 0), y los polos de cada eje.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
+## Builds data/thanatome_references.rda from recount3 (GTEx v8, gene, GENCODE v26):
+## per tissue, mean and SD of log2-CPM of the signature and flag genes, which genes
+## are expressed (mean log2-CPM > 0), and the poles of each axis.
 source("inst/scripts/record_session.R")
 suppressPackageStartupMessages({library(SummarizedExperiment); library(edgeR)})
 load("data/thanatome_signatures.rda")

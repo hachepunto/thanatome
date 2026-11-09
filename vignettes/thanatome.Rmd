@@ -20,7 +20,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-<!-- Asistido por Claude Code (Anthropic); ver README.md, sección Provenance. -->
+<!-- Assisted by Claude Code (Anthropic); see README.md, section Provenance. -->
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 5)

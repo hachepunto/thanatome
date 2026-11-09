@@ -1,4 +1,4 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
 data(thanatome_example)
 ctl <- thanatome_example[, thanatome_example$group == "control"]
 sc <- thanatome_score(ctl, reference = "ovary")

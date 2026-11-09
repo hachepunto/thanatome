@@ -1,9 +1,9 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
-## Construye data/thanatome_example.rda: SummarizedExperiment con conteos crudos de
-## los genes de firma y bandera para 74 controles de ovario de GTEx v8 (proyecto
-## OVARY de recount3, freeze RNASEQ, una corrida por muestra) y 40 tumores primarios
-## de TCGA-OV (proyecto OV de recount3), con el tamaño de biblioteca completo en
-## colData (necesario para que los CPM sean comparables con la referencia).
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
+## Builds data/thanatome_example.rda: SummarizedExperiment with raw counts of the
+## signature and flag genes for 74 GTEx v8 ovary controls (recount3 project OVARY,
+## RNASEQ freeze, one run per sample) and 40 TCGA-OV primary tumours (recount3
+## project OV), with the full library size in colData (needed for the CPM to be
+## comparable with the reference).
 source("inst/scripts/record_session.R")
 suppressPackageStartupMessages(library(SummarizedExperiment))
 load("data/thanatome_signatures.rda")
@@ -27,7 +27,7 @@ prepare <- function(rse, idx) {
 rg <- get_rse("OVARY", "gtex"); cg <- colData(rg)
 ok <- cg$gtex.smtsd == "Ovary" & cg$gtex.smafrze == "RNASEQ" & !duplicated(cg$gtex.sampid)
 h <- factor(cg$gtex.dthhrdy, levels = 0:4)
-## 67 proporcionales por Hardy y al menos 6 por clase (las clases pequeñas suben a 6): 74 en total
+## 67 proportional to Hardy class and at least 6 per class (small classes are raised to 6): 74 in total
 quota <- pmax(round(67 * prop.table(table(h[ok]))), 6)
 ig <- sort(unlist(lapply(levels(h), function(k) { i <- which(ok & h == k); sample(i, min(quota[k], length(i))) })))
 g <- prepare(rg, ig)

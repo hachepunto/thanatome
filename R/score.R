@@ -1,4 +1,4 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
 
 #' Annotate each sample with its position along the death axes
 #'
@@ -103,7 +103,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
     if (is.null(colnames(m))) stop("'x' needs sample names (column names)")
     ref <- .resolve_reference(reference, assay = assay, log = log)
     sig <- .signatures()$signatures
-    ## z por gen frente a la referencia, solo en los genes expresados en ella
+    ## Per-gene z against the reference, only for genes expressed in it
     g <- intersect(rownames(m), names(ref$mean)[ref$expressed])
     if (length(g) < 50) stop("fewer than 50 reference genes found in 'x'; check that row names are Ensembl ids")
     sig_ref <- intersect(sig$ensembl, names(ref$mean)[ref$expressed])
@@ -138,9 +138,9 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
     out
 }
 
-## ---- auxiliares internos ----------------------------------------------------
+## ---- internal helpers -------------------------------------------------------
 
-## Matriz log2-CPM (prior 1) con Ensembl sin versión
+## log2-CPM matrix (prior 1) with unversioned Ensembl ids
 .as_logcpm <- function(x, assay = "counts", log = FALSE, lib_size = NULL) {
     if (is(x, "DGEList")) {
         if (is.null(lib_size)) lib_size <- x$samples$lib.size * x$samples$norm.factors
@@ -162,7 +162,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
     k <- intersect(c("hardy", "DTHHRDY"), colnames(cd))
     if (length(k)) cd[[k[1]]] else NULL
 }
-## Referencia: tejido del paquete o cohorte del usuario (media y SD por gen; polos si hay Hardy)
+## Reference: package tissue or user cohort (per-gene mean and SD; poles if Hardy is present)
 .resolve_reference <- function(reference, assay, log) {
     if (is.character(reference)) {
         r <- death_reference(reference)
@@ -192,7 +192,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
         n_pole0 = c(sum(h == 0, na.rm = TRUE), sum(h %in% c(1L, 2L))), n_pole1 = c(sum(h >= 1, na.rm = TRUE), sum(h %in% c(3L, 4L))),
         stringsAsFactors = FALSE)
 }
-## Score de firma: media de z con el signo del consenso (NA con menos de 5 genes)
+## Signature score: mean z with the consensus sign (NA with fewer than 5 genes)
 .signature_score <- function(z, s) {
     g <- intersect(s$ensembl, rownames(z))
     if (length(g) < 5) return(rep(NA_real_, ncol(z)))
@@ -210,7 +210,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
 .state <- function(pv, pa, thr) {
     ifelse(is.na(pv), NA_character_, ifelse(pv < thr, "perfused", ifelse(is.na(pa), "postmortem", ifelse(pa < thr, "postmortem_rapid", "postmortem_agony"))))
 }
-## Regresión conjunta del perfil z sobre los vectores de consenso (sin intercepto; isquemia entra como columna pero no se reporta)
+## Joint regression of the z profile on the consensus vectors (no intercept; ischemia enters as a column but is not reported)
 .regression <- function(z, s, total_ss = NULL) {
     axes <- unique(s$axis); g <- intersect(unique(s$ensembl), rownames(z))
     B <- vapply(axes, function(a) { b <- s$lfc_consensus[s$axis == a][match(g, s$ensembl[s$axis == a])]; b[is.na(b)] <- 0; b }, numeric(length(g)))
@@ -226,13 +226,13 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
     out$r2_total <- if (is.null(total_ss)) NA_real_ else (ss_sig - ss_res) / total_ss
     out
 }
-## Suma de cuadrados de z sobre todos los genes de la cohorte (para r2_total)
+## Sum of squares of z over all cohort genes (for r2_total)
 .total_ss <- function(m, ref) {
     g <- intersect(rownames(m), names(ref$mean)[ref$expressed])
     z <- (m[g, , drop = FALSE] - ref$mean[g]) / ref$sd[g]; z[!is.finite(z)] <- 0
     colSums(z^2)
 }
-## AUC por Mann-Whitney (sin dependencias)
+## Mann-Whitney AUC (no dependencies)
 .auc <- function(y, s) {
     ok <- !is.na(y) & !is.na(s); y <- as.logical(y[ok]); s <- s[ok]
     n1 <- sum(y); n0 <- sum(!y)

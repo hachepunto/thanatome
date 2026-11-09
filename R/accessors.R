@@ -1,4 +1,4 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
 
 #' Access the consensus death signatures
 #'
@@ -53,13 +53,13 @@ hardy_layers <- function(hardy) {
     data.frame(hardy = hardy, ventilator = ventilator, agony = agony, state = state, stringsAsFactors = FALSE)
 }
 
-## Hardy como entero 0-4 (acepta factor o carácter con esas etiquetas)
+## Hardy as integer 0-4 (accepts a factor or character with those labels)
 .as_hardy <- function(hardy) {
     h <- as.character(hardy)
     if (!all(is.na(h) | grepl("^[0-4]$", h))) stop("'hardy' must contain values 0-4 (or NA)")
     as.integer(h)
 }
-## Carga perezosa de los datos del paquete (LazyData: false) sin tocar el entorno global
+## Lazy loading of the package data (LazyData: false) without touching the global environment
 .signatures <- function() {
     e <- new.env(parent = emptyenv()); utils::data("thanatome_signatures", package = "thanatome", envir = e); e$thanatome_signatures
 }

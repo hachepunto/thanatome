@@ -1,4 +1,4 @@
-## Asistido por Claude Code (Anthropic); ver README.md, sección Provenance.
+## Assisted by Claude Code (Anthropic); see README.md, section Provenance.
 data(thanatome_example)
 ctl <- thanatome_example[, thanatome_example$group == "control"]
 
@@ -16,7 +16,7 @@ test_that("the ventilator score separates Hardy 0 from the rest in the example",
     auc <- S4Vectors::metadata(sc)$auc
     expect_gt(auc[["ventilator"]], 0.8)
     expect_gt(auc[["agony"]], 0.6)
-    ## los ventilados quedan cerca del polo 0 y los demás cerca del 1
+    ## ventilated samples sit near pole 0 and the rest near pole 1
     h <- ctl$hardy
     expect_lt(median(sc$position_ventilator[h == 0]), 0.5)
     expect_gt(median(sc$position_ventilator[h >= 1]), 0.5)
@@ -35,7 +35,7 @@ test_that("regression adds beta and r2 columns but keeps ischemia marginal", {
 test_that("a cohort reference works, with poles when hardy is present", {
     sc <- thanatome_score(ctl, reference = ctl, method = "regression")
     expect_false(any(is.na(sc$position_ventilator)))
-    expect_true(all(is.na(sc$r2_total)))   # la cohorte del ejemplo no trae el transcriptoma completo
+    expect_true(all(is.na(sc$r2_total)))   # the example cohort does not carry the whole transcriptome
     expect_true(all(sc$r2_signature > 0 & sc$r2_signature < 1))
     m <- SummarizedExperiment::assay(ctl)
     expect_message(sc2 <- suppressWarnings(thanatome_score(m, reference = m, lib_size = ctl$lib_size)), "hardy")
