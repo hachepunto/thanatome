@@ -7,7 +7,7 @@
 contamination_flags(
   x,
   threshold = 4,
-  lung = FALSE,
+  tissue = NULL,
   assay = "counts",
   lib_size = NULL,
   log = FALSE
@@ -20,7 +20,10 @@ contamination_flags(
 \item{threshold}{Mean log2-CPM above which the flag is raised. Default 4
 (about 16 CPM).}
 
-\item{lung}{Logical; \code{TRUE} disables the surfactant flag.}
+\item{tissue}{Optional tissue of the samples (case-insensitive; names
+starting with \code{"lung"} disable the surfactant flag and names starting
+with \code{"pancrea"} the pancreatic flag). \code{\link[=thanatome_score]{thanatome_score()}} passes the
+tissue of the packaged reference unless told otherwise.}
 
 \item{assay, lib_size, log}{Passed to the normalisation; see
 \code{\link[=thanatome_score]{thanatome_score()}}.}
@@ -38,8 +41,10 @@ tissue, Nieuwenhuis et al. 2020) or over the surfactant genes (SFTPC,
 SFTPB, SFTPA1, SFTPA2) exceeds an absolute threshold. The threshold is a
 heuristic on absolute expression, not a z-score against the reference,
 because the reference tissues do not express these genes and a z-score
-against a near-zero standard deviation is meaningless. The surfactant flag
-is not raised for lung, where those genes are expressed physiologically.
+against a near-zero standard deviation is meaningless. A flag is not
+raised for the tissue that expresses its genes physiologically: the
+surfactant flag for lung and the pancreatic flag for pancreas, when
+\code{tissue} says so.
 }
 \examples{
 data(thanatome_example)

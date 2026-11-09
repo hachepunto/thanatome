@@ -14,6 +14,8 @@ thanatome_score(
   lib_size = NULL,
   normalize = c("none", "quantile"),
   drop_unexpressed = TRUE,
+  tissue = NULL,
+  min_pole = 8,
   state_threshold = 0.5,
   flag_threshold = 4
 )
@@ -61,6 +63,17 @@ with mean log2-CPM <= 0 over the samples of \code{x}, when \code{x} has at least
 5 samples (with fewer, an absent gene cannot be told apart from a
 lowly expressed one and all genes are kept). The genes left out are
 listed in \code{metadata()$unexpressed_signature_genes}.}
+
+\item{tissue}{Optional tissue of the samples, used only to switch off
+the contamination flag that is physiological there (surfactant in
+lung, pancreatic enzymes in pancreas); by default the tissue of the
+packaged reference, and none for a cohort reference.}
+
+\item{min_pole}{For a cohort reference, minimum number of samples in each
+pole. Poles with fewer samples, or whose score separates the two Hardy
+groups with an internal AUC below 0.6, are not used: positions and
+state labels of that axis are \code{NA}, with a warning, and
+\code{metadata()$poles} records the counts, the AUC and \code{ok}. Default 8.}
 
 \item{state_threshold}{Position above which a sample is labelled
 non-perfused (ventilator axis) or in agony (agony axis). Default 0.5.}

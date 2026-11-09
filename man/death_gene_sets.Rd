@@ -8,7 +8,7 @@ death_gene_sets(
   axes = c("ventilator", "agony"),
   id = c("ensembl", "symbol"),
   split = TRUE,
-  format = c("list", "GeneSetCollection", "BiocSet")
+  format = c("list", "GeneSetCollection")
 )
 }
 \arguments{
@@ -21,9 +21,8 @@ death_gene_sets(
 \item{split}{Logical; \code{TRUE} (default) gives one set per axis and
 direction (\verb{<axis>_up}, \verb{<axis>_down}), \code{FALSE} one set per axis.}
 
-\item{format}{\code{"list"} (default, a named list of character vectors),
-\code{"GeneSetCollection"} (package GSEABase) or \code{"BiocSet"} (package
-BiocSet).}
+\item{format}{\code{"list"} (default, a named list of character vectors) or
+\code{"GeneSetCollection"} (package GSEABase).}
 }
 \value{
 The gene sets in the requested format.

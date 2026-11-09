@@ -96,6 +96,15 @@
 #'   5 samples (with fewer, an absent gene cannot be told apart from a
 #'   lowly expressed one and all genes are kept). The genes left out are
 #'   listed in `metadata()$unexpressed_signature_genes`.
+#' @param tissue Optional tissue of the samples, used only to switch off
+#'   the contamination flag that is physiological there (surfactant in
+#'   lung, pancreatic enzymes in pancreas); by default the tissue of the
+#'   packaged reference, and none for a cohort reference.
+#' @param min_pole For a cohort reference, minimum number of samples in each
+#'   pole. Poles with fewer samples, or whose score separates the two Hardy
+#'   groups with an internal AUC below 0.6, are not used: positions and
+#'   state labels of that axis are `NA`, with a warning, and
+#'   `metadata()$poles` records the counts, the AUC and `ok`. Default 8.
 #' @param state_threshold Position above which a sample is labelled
 #'   non-perfused (ventilator axis) or in agony (agony axis). Default 0.5.
 #' @param flag_threshold Mean log2-CPM above which a contamination flag is
@@ -124,8 +133,9 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
                             method = c("signature", "regression"),
                             assay = "counts", log = FALSE, lib_size = NULL,
                             normalize = c("none", "quantile"),
-                            drop_unexpressed = TRUE,
-                            state_threshold = 0.5, flag_threshold = 4) {
+                            drop_unexpressed = TRUE, tissue = NULL,
+                            min_pole = 8, state_threshold = 0.5,
+                            flag_threshold = 4) {
     if (missing(reference) || is.null(reference)) {
         stop("'reference' is required: a tissue name from ",
             "names(thanatome_references) or a cohort of the same tissue")
@@ -136,7 +146,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     m <- .as_logcpm(x, assay = assay, log = log, lib_size = lib_size)
     if (is.null(colnames(m))) stop("'x' needs sample names (column names)")
     ref <- .resolve_reference(reference, assay = assay, log = log,
-                                normalize = normalize)
+                                normalize = normalize, min_pole = min_pole)
     sig <- .signatures()$signatures
     mz <- .prepare_for_z(m, ref, normalize, drop_unexpressed)
     z <- .z_against_reference(mz, ref, sig)
@@ -147,8 +157,8 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     out$position_agony <- pos$agony
     out$state <- .state(out$position_ventilator, out$position_agony,
                         state_threshold)
-    fl <- .flags_from_logcpm(m, threshold = flag_threshold,
-                            lung = identical(ref$tissue, "lung"))
+    if (is.null(tissue)) tissue <- ref$tissue
+    fl <- .flags_from_logcpm(m, threshold = flag_threshold, tissue = tissue)
     out$flag_pancreas <- fl$pancreas
     out$flag_surfactant <- fl$surfactant
     if (method == "regression") {
@@ -299,7 +309,8 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
 }
 ## Reference: package tissue or user cohort (per-gene mean and SD; poles if
 ## Hardy is present)
-.resolve_reference <- function(reference, assay, log, normalize = "none") {
+.resolve_reference <- function(reference, assay, log, normalize = "none",
+                                min_pole = 8) {
     if (is.character(reference)) return(.tissue_reference(reference, normalize))
     m <- .as_logcpm(reference, assay = assay, log = log)
     if (ncol(m) < 20) {
@@ -323,7 +334,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
         NULL
     } else {
         .cohort_poles(m[expressed, , drop = FALSE], mu[expressed],
-                        s[expressed], hardy)
+                        s[expressed], hardy, min_pole)
     }
     list(mean = mu, sd = s, expressed = expressed, poles = poles,
         tissue = NA_character_, pipeline = "cohort",
@@ -345,13 +356,36 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
         qn_genes = r$qn$genes, qn_target = r$qn$target)
 }
 ## Poles of a cohort reference from its own Hardy labels
-.cohort_poles <- function(m, mu, s, hardy) {
+.cohort_poles <- function(m, mu, s, hardy, min_pole = 8) {
     sig <- .signatures()$signatures
     z <- (m - mu) / s
     z[!is.finite(z)] <- 0
-    .poles_from_scores(.signature_score(z, sig[sig$axis == "ventilator", ]),
-                        .signature_score(z, sig[sig$axis == "agony", ]),
-                        .as_hardy(hardy))
+    sv <- .signature_score(z, sig[sig$axis == "ventilator", ])
+    sa <- .signature_score(z, sig[sig$axis == "agony", ])
+    h <- .as_hardy(hardy)
+    .check_poles(.poles_from_scores(sv, sa, h), sv, sa, h, min_pole)
+}
+## Poles of a cohort are kept only with at least 'min_pole' samples each and
+## an internal AUC >= 0.6 in the expected direction (Hardy 0 above the rest
+## on the ventilator axis, slow above fast deaths on the agony axis);
+## otherwise they are set to NA, so positions and labels are NA
+.check_poles <- function(poles, sv, sa, h, min_pole) {
+    vent <- ifelse(is.na(h), NA, h == 0L)
+    slow <- ifelse(h %in% c(1L, 2L, 3L, 4L), h >= 3L, NA)
+    poles$auc <- c(.auc(vent, sv), .auc(slow, sa))
+    big <- poles$n_pole0 >= min_pole & poles$n_pole1 >= min_pole
+    poles$ok <- big & !is.na(poles$auc) & poles$auc >= 0.6
+    if (any(!poles$ok)) {
+        bad <- poles[!poles$ok, ]
+        warning("cohort reference: poles not usable for ",
+                paste0(bad$axis, " (n = ", bad$n_pole0, "/", bad$n_pole1,
+                        ", AUC = ", round(bad$auc, 2), ")", collapse = "; "),
+                "; positions and state labels of that axis are NA ",
+                "(needs >= ", min_pole, " samples per pole and AUC >= 0.6)")
+        poles$pole0[!poles$ok] <- NA_real_
+        poles$pole1[!poles$ok] <- NA_real_
+    }
+    poles
 }
 .poles_from_scores <- function(sv, sa, h) {
     fast <- h %in% c(1L, 2L)

@@ -18,9 +18,8 @@
 #'   `"symbol"` (genes without a symbol are dropped).
 #' @param split Logical; `TRUE` (default) gives one set per axis and
 #'   direction (`<axis>_up`, `<axis>_down`), `FALSE` one set per axis.
-#' @param format `"list"` (default, a named list of character vectors),
-#'   `"GeneSetCollection"` (package GSEABase) or `"BiocSet"` (package
-#'   BiocSet).
+#' @param format `"list"` (default, a named list of character vectors) or
+#'   `"GeneSetCollection"` (package GSEABase).
 #' @return The gene sets in the requested format.
 #' @examples
 #' gs <- death_gene_sets()
@@ -33,8 +32,7 @@
 #' @export
 death_gene_sets <- function(axes = c("ventilator", "agony"),
                             id = c("ensembl", "symbol"), split = TRUE,
-                            format = c("list", "GeneSetCollection",
-                                        "BiocSet")) {
+                            format = c("list", "GeneSetCollection")) {
     axes <- match.arg(axes, c("ventilator", "agony", "ischemia"),
                         several.ok = TRUE)
     id <- match.arg(id)
@@ -52,8 +50,7 @@ death_gene_sets <- function(axes = c("ventilator", "agony"),
     sets <- sets[lengths(sets) > 0]
     switch(format,
         list = sets,
-        GeneSetCollection = .as_gene_set_collection(sets, id),
-        BiocSet = .as_biocset(sets)
+        GeneSetCollection = .as_gene_set_collection(sets, id)
     )
 }
 
@@ -73,10 +70,4 @@ death_gene_sets <- function(axes = c("ventilator", "agony"),
                         shortDescription = paste("thanatome", n))
     })
     GSEABase::GeneSetCollection(gs)
-}
-.as_biocset <- function(sets) {
-    if (!requireNamespace("BiocSet", quietly = TRUE)) {
-        stop("format = \"BiocSet\" needs the BiocSet package")
-    }
-    do.call(BiocSet::BiocSet, sets)
 }

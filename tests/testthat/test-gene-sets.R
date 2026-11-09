@@ -13,12 +13,9 @@ test_that("death_gene_sets splits each axis by direction", {
     expect_false(any(grepl("^ENSG", unlist(sym))))
 })
 
-test_that("death_gene_sets exports to GSEABase and BiocSet", {
+test_that("death_gene_sets exports to GSEABase", {
     skip_if_not_installed("GSEABase")
     gsc <- death_gene_sets(format = "GeneSetCollection")
     expect_s4_class(gsc, "GeneSetCollection")
     expect_identical(names(gsc), names(death_gene_sets()))
-    skip_if_not_installed("BiocSet")
-    bs <- death_gene_sets(format = "BiocSet")
-    expect_s4_class(bs, "BiocSet")
 })
