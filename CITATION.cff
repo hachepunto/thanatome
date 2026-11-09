@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "thanatome: Donor Death Signatures for Post-Mortem Control Tissue"
+type: software
+authors:
+  - family-names: "Pérez-Calixto"
+    given-names: "Daniel"
+    affiliation: "Instituto Nacional de Medicina Genómica"
+    orcid: "https://orcid.org/0009-0004-3988-1260"
+  - family-names: "Hernandez-Lemus"
+    given-names: "Enrique"
+    affiliation: "Instituto Nacional de Medicina Genómica"
+    orcid: "https://orcid.org/0000-0002-1872-1397"
+  - family-names: "Tovar"
+    given-names: "Hugo"
+    affiliation: "Instituto Nacional de Medicina Genómica"
+    orcid: "https://orcid.org/0000-0002-8360-6133"
+version: "0.99.0"
+date-released: "2026-11-09"
+doi: "10.5281/zenodo.24094417"
+license: MIT
+repository-code: "https://github.com/hachepunto/thanatome"
+keywords:
+  - Bioconductor
+  - GTEx
+  - post-mortem
+  - Hardy scale
+  - differential expression
+  - control samples
+  - transcriptomics

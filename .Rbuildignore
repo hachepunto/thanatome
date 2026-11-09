@@ -5,3 +5,4 @@
 ^.*\.BiocCheck$
 ^\.github$
 ^\.zenodo\.json$
+^CITATION\.cff$
