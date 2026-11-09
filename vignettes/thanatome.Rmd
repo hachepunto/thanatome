@@ -23,12 +23,14 @@ vignette: >
 <!-- Assisted by Claude Code (Anthropic); see README.md, section Provenance. -->
 
 ```{r setup, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 5)
+knitr::opts_chunk$set(
+    collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 5
+)
 ```
 
 # Introduction
 
-Post-mortem tissue from GTEx [@gtex2020] and similar resources is the usual "normal" control when a tumour cohort has no adjacent normal tissue. Those donors died in different ways: on a ventilator in intensive care (Hardy scale 0), suddenly (Hardy 1-2) or after a slow illness (Hardy 3-4), and their organs were collected hours after death. Death and post-mortem ischemia leave transcriptional traces [@ferreira2018; @pozhitkov2017], and GTEx samples also carry technical contamination from neighbouring tissues [@nieuwenhuis2020]. `thanatome` carries consensus transcriptional signatures of those processes, derived from GTEx v8 across ten tissues, and uses them to annotate every sample of a cohort before any downstream analysis:
+Post-mortem tissue from GTEx [@gtex2020] and similar resources is the usual "normal" control when a tumour cohort has no adjacent normal tissue. Those donors died in different ways, which GTEx records with the four-point Hardy scale of the circumstances of death [@hardy1985]: on a ventilator in intensive care (Hardy scale 0), suddenly (Hardy 1-2) or after a slow illness (Hardy 3-4), and their organs were collected hours after death. Death and post-mortem ischemia leave transcriptional traces [@ferreira2018; @pozhitkov2017], and GTEx samples also carry technical contamination from neighbouring tissues [@nieuwenhuis2020]. `thanatome` carries consensus transcriptional signatures of those processes, derived from GTEx v8 across ten tissues, and uses them to annotate every sample of a cohort before any downstream analysis:
 
 - **ventilator**: ventilated versus non-ventilated donors; seen from outside GTEx it is the axis *perfused versus post-mortem*;
 - **agony**: slow versus fast deaths among non-ventilated donors;
@@ -64,7 +66,9 @@ A reference of the same tissue is mandatory: the scores are means of per-gene z-
 
 ```{r score2}
 sc <- thanatome_score(ctl, reference = "ovary")
-sc[1:5, c("ventilator", "ischemia", "agony", "position_ventilator", "position_agony", "state")]
+cols <- c("ventilator", "ischemia", "agony",
+    "position_ventilator", "position_agony", "state")
+sc[1:5, cols]
 ```
 
 Because the example carries the Hardy scale, the function reports as an internal check how well each score recovers the label. These GTEx samples entered the consensus, the references and the poles, so the figures below are in-sample; the out-of-sample figures (signatures derived without the tissue) are AUC 0.87-0.94 for ventilator and 0.69-0.90 for agony.
@@ -98,6 +102,13 @@ keep <- ctl[, sel$keep]
 keep
 ```
 
+To keep the annotation with the counts, `add_thanatome_score()` returns the `SummarizedExperiment` itself with the score columns added to its `colData` and the score metadata in `metadata(x)$thanatome`; the columns then travel into `DESeqDataSet` or `DGEList` objects built from it, and `prefix` avoids clashes with existing columns.
+
+```{r add}
+ctl_ann <- add_thanatome_score(ctl, reference = "ovary")
+table(ctl_ann$state, hardy = ctl_ann$hardy)
+```
+
 # Using the scores as covariates
 
 The scores can enter a design matrix or `limma::removeBatchEffect()` as continuous covariates. Two cautions apply: the axes vary only among post-mortem samples, so in a tumour-versus-control design adjust within controls or keep the group term; and the adjustment centres the controls at their mean, not at the living pole.
@@ -108,7 +119,8 @@ head(cv)
 ```
 
 ```{r limma, eval = requireNamespace("limma", quietly = TRUE)}
-logcpm <- edgeR::cpm(assay(ctl), lib.size = ctl$lib_size, log = TRUE, prior.count = 1)
+logcpm <- edgeR::cpm(assay(ctl),
+    lib.size = ctl$lib_size, log = TRUE, prior.count = 1)
 adjusted <- limma::removeBatchEffect(logcpm, covariates = cv)
 dim(adjusted)
 ```
@@ -131,10 +143,13 @@ The example carries only the signature genes, so the fraction of DEGs in the axe
 
 ```{r compare}
 set.seed(1)
-cc <- compare_controls(thanatome_example, group = "group", control = "control",
-                       criteria = list(perfused = list(preset = "perfused"),
-                                       no_agony = list(preset = "no_agony")),
-                       reference = "ovary", n_random = 3)
+criteria <- list(
+    perfused = list(preset = "perfused"),
+    no_agony = list(preset = "no_agony")
+)
+cc <- compare_controls(thanatome_example,
+    group = "group", control = "control", criteria = criteria,
+    reference = "ovary", n_random = 3)
 as.data.frame(cc$summary)
 ```
 
@@ -142,15 +157,20 @@ The same comparison can carry a master-regulator analysis: pass as `mra` a funct
 
 ```{r mra}
 sig <- death_signatures("ventilator")
-regs <- list(TF_vent = list(tfmode = setNames(rep(1, 30), sig$ensembl[sig$direction == "up"][1:30])),
-             TF_other = paste0("ENSG0000000", seq_len(40)))
-annotate_mra(c(TF_vent = 3.1, TF_other = 0.2), regs, axes = c("ventilator", "agony"))
+up <- sig$ensembl[sig$direction == "up"][1:30]
+regs <- list(
+    TF_vent = list(tfmode = setNames(rep(1, 30), up)),
+    TF_other = paste0("ENSG0000000", seq_len(40))
+)
+annotate_mra(c(TF_vent = 3.1, TF_other = 0.2), regs,
+    axes = c("ventilator", "agony"))
 ```
 
 `audit_report()` writes the whole thing as text for a supplement.
 
 ```{r report}
-audit_report(sc, selection = select_samples(sc, preset = "no_agony"), comparison = cc)
+audit_report(sc,
+    selection = select_samples(sc, preset = "no_agony"), comparison = cc)
 ```
 
 # Annotating an existing differential-expression table
@@ -159,8 +179,10 @@ audit_report(sc, selection = select_samples(sc, preset = "no_agony"), comparison
 
 ```{r annotate}
 sig <- death_signatures("ventilator")
-de <- data.frame(logFC = c(0.2, 2.5, -1), adj.P.Val = c(0.01, 0.001, 0.04),
-                 row.names = c(sig$ensembl[1], sig$ensembl[2], "ENSG00000000003"))
+de <- data.frame(
+    logFC = c(0.2, 2.5, -1), adj.P.Val = c(0.01, 0.001, 0.04),
+    row.names = c(sig$ensembl[1], sig$ensembl[2], "ENSG00000000003")
+)
 annotate_de(de, axes = c("ventilator", "agony"))
 ```
 

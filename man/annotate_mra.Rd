@@ -54,7 +54,8 @@ the cases.
 \examples{
 sig <- death_signatures("ventilator")
 up <- sig$ensembl[sig$direction == "up"][1:30]
+other <- paste0("ENSG", seq_len(30))
 regs <- list(TF_vent = list(tfmode = setNames(rep(1, 30), up)),
-             TF_other = list(tfmode = setNames(rep(1, 30), paste0("ENSG", seq_len(30)))))
+             TF_other = list(tfmode = setNames(rep(1, 30), other)))
 annotate_mra(c(TF_vent = 3.2, TF_other = -1.1), regs)
 }

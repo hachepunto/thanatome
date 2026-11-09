@@ -23,7 +23,8 @@ GTEx v8 gene read counts from the GTEx portal
 (\url{https://gtexportal.org}, dbGaP phs000424.v8), ten tissues: ovary,
 breast, thyroid, lung, sigmoid colon, transverse colon, liver, prostate,
 uterus and skin (lower leg); DESeq2 per tissue and Stouffer consensus,
-analysis repository \url{https://github.com/hachepunto/thanatome-manuscript}.
+analysis repository
+\url{https://github.com/hachepunto/thanatome-manuscript}.
 }
 \usage{
 data(thanatome_signatures)
@@ -45,7 +46,8 @@ ventilator axis sensitive to ischemic time. Built by
 }
 \examples{
 data(thanatome_signatures)
-table(thanatome_signatures$signatures$axis, thanatome_signatures$signatures$direction)
+sg <- thanatome_signatures$signatures
+table(sg$axis, sg$direction)
 }
 \references{
 GTEx Consortium (2020) Science 369:1318-1330

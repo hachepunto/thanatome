@@ -49,20 +49,32 @@ hardy_layers <- function(hardy) {
     hardy <- .as_hardy(hardy)
     ventilator <- hardy == 0L
     agony <- ifelse(hardy >= 3L, TRUE, ifelse(hardy >= 1L, FALSE, NA))
-    state <- ifelse(ventilator, "perfused", ifelse(agony, "postmortem_agony", "postmortem_rapid"))
-    data.frame(hardy = hardy, ventilator = ventilator, agony = agony, state = state, stringsAsFactors = FALSE)
+    state <- ifelse(ventilator, "perfused",
+        ifelse(agony, "postmortem_agony", "postmortem_rapid")
+    )
+    data.frame(
+        hardy = hardy, ventilator = ventilator, agony = agony,
+        state = state, stringsAsFactors = FALSE
+    )
 }
 
 ## Hardy as integer 0-4 (accepts a factor or character with those labels)
 .as_hardy <- function(hardy) {
     h <- as.character(hardy)
-    if (!all(is.na(h) | grepl("^[0-4]$", h))) stop("'hardy' must contain values 0-4 (or NA)")
+    if (!all(is.na(h) | grepl("^[0-4]$", h))) {
+        stop("'hardy' must contain values 0-4 (or NA)")
+    }
     as.integer(h)
 }
-## Lazy loading of the package data (LazyData: false) without touching the global environment
+## Lazy loading of the package data (LazyData: false) without touching the
+## global environment
 .signatures <- function() {
-    e <- new.env(parent = emptyenv()); utils::data("thanatome_signatures", package = "thanatome", envir = e); e$thanatome_signatures
+    e <- new.env(parent = emptyenv())
+    utils::data("thanatome_signatures", package = "thanatome", envir = e)
+    e$thanatome_signatures
 }
 .references <- function() {
-    e <- new.env(parent = emptyenv()); utils::data("thanatome_references", package = "thanatome", envir = e); e$thanatome_references
+    e <- new.env(parent = emptyenv())
+    utils::data("thanatome_references", package = "thanatome", envir = e)
+    e$thanatome_references
 }

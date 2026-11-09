@@ -92,105 +92,185 @@
 #' @seealso [select_samples()], [plot_thanatome()], [death_covariates()],
 #'   [compare_controls()]
 #' @export
-thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), method = c("signature", "regression"),
-                            assay = "counts", log = FALSE, lib_size = NULL, state_threshold = 0.5, flag_threshold = 4) {
+thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
+                            method = c("signature", "regression"),
+                            assay = "counts", log = FALSE, lib_size = NULL,
+                            state_threshold = 0.5, flag_threshold = 4) {
     if (missing(reference) || is.null(reference)) {
-        stop("'reference' is required: a tissue name from names(thanatome_references) or a cohort of the same tissue")
+        stop("'reference' is required: a tissue name from ",
+            "names(thanatome_references) or a cohort of the same tissue")
     }
-    axes <- match.arg(axes, several.ok = TRUE); method <- match.arg(method)
-    cd <- .coldata(x)
+    axes <- match.arg(axes, several.ok = TRUE)
+    method <- match.arg(method)
     m <- .as_logcpm(x, assay = assay, log = log, lib_size = lib_size)
     if (is.null(colnames(m))) stop("'x' needs sample names (column names)")
     ref <- .resolve_reference(reference, assay = assay, log = log)
     sig <- .signatures()$signatures
-    ## Per-gene z against the reference, only for genes expressed in it
-    g <- intersect(rownames(m), names(ref$mean)[ref$expressed])
-    if (length(g) < 50) stop("fewer than 50 reference genes found in 'x'; check that row names are Ensembl ids")
-    sig_ref <- intersect(sig$ensembl, names(ref$mean)[ref$expressed])
-    if (length(intersect(g, sig_ref)) < 0.9 * length(sig_ref)) warning("only ", length(intersect(g, sig_ref)), " of ", length(sig_ref), " signature genes of the reference are in 'x'; positions may be biased")
-    z <- (m[g, , drop = FALSE] - ref$mean[g]) / ref$sd[g]
-    z[!is.finite(z)] <- 0
+    z <- .z_against_reference(m, ref, sig)
     cols <- c(axes, "ischemia")
-    scores <- vapply(cols, function(a) .signature_score(z, sig[sig$axis == a, ]), numeric(ncol(z)))
-    n_genes <- vapply(cols, function(a) sum(sig$ensembl[sig$axis == a] %in% g), integer(1))
-    out <- S4Vectors::DataFrame(matrix(scores, ncol = length(cols), dimnames = list(colnames(m), cols)))
+    out <- .axis_scores(z, sig, cols)
     pos <- .positions(out, ref$poles)
-    out$position_ventilator <- pos$ventilator; out$position_agony <- pos$agony
-    out$state <- .state(out$position_ventilator, out$position_agony, state_threshold)
-    fl <- .flags_from_logcpm(m, threshold = flag_threshold, lung = identical(ref$tissue, "lung"))
-    out$flag_pancreas <- fl$pancreas; out$flag_surfactant <- fl$surfactant
+    out$position_ventilator <- pos$ventilator
+    out$position_agony <- pos$agony
+    out$state <- .state(out$position_ventilator, out$position_agony,
+                        state_threshold)
+    fl <- .flags_from_logcpm(m, threshold = flag_threshold,
+                            lung = identical(ref$tissue, "lung"))
+    out$flag_pancreas <- fl$pancreas
+    out$flag_surfactant <- fl$surfactant
     if (method == "regression") {
-        rg <- .regression(z, sig[sig$axis %in% c(axes, "ischemia"), ], total_ss = if (ref$cohort && length(ref$mean) >= 10000 && nrow(m) >= 10000) .total_ss(m, ref) else NULL)
+        full <- ref$cohort && length(ref$mean) >= 10000 && nrow(m) >= 10000
+        rg <- .regression(z, sig[sig$axis %in% cols, ],
+                        total_ss = if (full) .total_ss(m, ref) else NULL)
         out <- cbind(out, rg)
     }
-    out$n_genes <- matrix(n_genes, nrow = nrow(out), ncol = length(cols), byrow = TRUE, dimnames = list(NULL, cols))
-    meta <- list(reference = ref$label, pipeline = ref$pipeline, method = method, poles = ref$poles,
-                 thresholds = .signatures()$thresholds, state_threshold = state_threshold)
-    hardy <- .hardy_column(cd)
-    if (!is.null(hardy)) {
-        hl <- hardy_layers(hardy)
-        if (!"agony" %in% axes) hl$state[hl$state != "perfused"] <- "postmortem"
-        meta$auc <- c(ventilator = if ("ventilator" %in% axes) .auc(hl$ventilator, out$ventilator) else NA,
-                      agony = if ("agony" %in% axes) .auc(hl$agony, out$agony) else NA)
-        meta$state_agreement <- mean(out$state == hl$state, na.rm = TRUE)
-    }
-    S4Vectors::metadata(out) <- meta
+    n_genes <- vapply(cols, function(a) {
+        sum(sig$ensembl[sig$axis == a] %in% rownames(z))
+    }, integer(1))
+    out$n_genes <- matrix(n_genes, nrow = nrow(out), ncol = length(cols),
+                        byrow = TRUE, dimnames = list(NULL, cols))
+    S4Vectors::metadata(out) <- .score_metadata(out, ref, method, axes,
+                                                state_threshold, .coldata(x))
     out
 }
 
 ## ---- internal helpers -------------------------------------------------------
 
+## Per-gene z against the reference, only for genes expressed in it
+.z_against_reference <- function(m, ref, sig) {
+    expressed <- names(ref$mean)[ref$expressed]
+    g <- intersect(rownames(m), expressed)
+    if (length(g) < 50) {
+        stop("fewer than 50 reference genes found in 'x'; ",
+            "check that row names are Ensembl ids")
+    }
+    sig_ref <- intersect(sig$ensembl, expressed)
+    n_found <- length(intersect(g, sig_ref))
+    if (n_found < 0.9 * length(sig_ref)) {
+        warning("only ", n_found, " of ", length(sig_ref),
+                " signature genes of the reference are in 'x'; ",
+                "positions may be biased")
+    }
+    z <- (m[g, , drop = FALSE] - ref$mean[g]) / ref$sd[g]
+    z[!is.finite(z)] <- 0
+    z
+}
+## Signature score per axis, one row per sample
+.axis_scores <- function(z, sig, cols) {
+    one <- function(a) .signature_score(z, sig[sig$axis == a, ])
+    scores <- vapply(cols, one, numeric(ncol(z)))
+    S4Vectors::DataFrame(matrix(scores, ncol = length(cols),
+                                dimnames = list(colnames(z), cols)))
+}
+## Reference, method, poles and, if 'x' carries Hardy, the internal check
+.score_metadata <- function(out, ref, method, axes, state_threshold, cd) {
+    meta <- list(reference = ref$label, pipeline = ref$pipeline,
+                method = method, poles = ref$poles,
+                thresholds = .signatures()$thresholds,
+                state_threshold = state_threshold)
+    hardy <- .hardy_column(cd)
+    if (is.null(hardy)) return(meta)
+    hl <- hardy_layers(hardy)
+    if (!"agony" %in% axes) hl$state[hl$state != "perfused"] <- "postmortem"
+    auc_axis <- function(a) if (a %in% axes) .auc(hl[[a]], out[[a]]) else NA
+    meta$auc <- c(ventilator = auc_axis("ventilator"),
+                agony = auc_axis("agony"))
+    meta$state_agreement <- mean(out$state == hl$state, na.rm = TRUE)
+    meta
+}
 ## log2-CPM matrix (prior 1) with unversioned Ensembl ids
 .as_logcpm <- function(x, assay = "counts", log = FALSE, lib_size = NULL) {
     if (is(x, "DGEList")) {
-        if (is.null(lib_size)) lib_size <- x$samples$lib.size * x$samples$norm.factors
+        if (is.null(lib_size)) {
+            lib_size <- x$samples$lib.size * x$samples$norm.factors
+        }
         x <- x$counts
     }
-    m <- if (is(x, "SummarizedExperiment")) SummarizedExperiment::assay(x, assay) else as.matrix(x)
+    m <- if (is(x, "SummarizedExperiment")) {
+        SummarizedExperiment::assay(x, assay)
+    } else {
+        as.matrix(x)
+    }
     if (is.null(rownames(m))) stop("'x' needs gene ids (Ensembl) as row names")
     rownames(m) <- sub("\\..*$", "", rownames(m))
     m <- m[!duplicated(rownames(m)), , drop = FALSE]
     if (log) return(m)
-    if (is.null(lib_size)) { cd <- .coldata(x); if (!is.null(cd) && "lib_size" %in% colnames(cd)) lib_size <- cd$lib_size }
-    if (!is.null(lib_size) && length(lib_size) != ncol(m)) stop("'lib_size' must have one value per sample of 'x'")
-    if (is.null(lib_size) && nrow(m) < 10000) warning("'x' has only ", nrow(m), " genes and no library sizes: CPM will be computed over that subset and will not be comparable with the reference")
+    if (is.null(lib_size)) {
+        cd <- .coldata(x)
+        if (!is.null(cd) && "lib_size" %in% colnames(cd)) {
+            lib_size <- cd$lib_size
+        }
+    }
+    if (!is.null(lib_size) && length(lib_size) != ncol(m)) {
+        stop("'lib_size' must have one value per sample of 'x'")
+    }
+    if (is.null(lib_size) && nrow(m) < 10000) {
+        warning("'x' has only ", nrow(m), " genes and no library sizes: ",
+                "CPM will be computed over that subset and will not be ",
+                "comparable with the reference")
+    }
     edgeR::cpm(m, log = TRUE, prior.count = 1, lib.size = lib_size)
 }
-.coldata <- function(x) if (is(x, "SummarizedExperiment")) SummarizedExperiment::colData(x) else NULL
+.coldata <- function(x) {
+    if (!is(x, "SummarizedExperiment")) return(NULL)
+    SummarizedExperiment::colData(x)
+}
 .hardy_column <- function(cd) {
     if (is.null(cd)) return(NULL)
     k <- intersect(c("hardy", "DTHHRDY"), colnames(cd))
     if (length(k)) cd[[k[1]]] else NULL
 }
-## Reference: package tissue or user cohort (per-gene mean and SD; poles if Hardy is present)
+## Reference: package tissue or user cohort (per-gene mean and SD; poles if
+## Hardy is present)
 .resolve_reference <- function(reference, assay, log) {
     if (is.character(reference)) {
         r <- death_reference(reference)
-        return(list(mean = r$mean, sd = r$sd, expressed = r$expressed, poles = r$poles, tissue = r$tissue,
-                    pipeline = r$pipeline, label = paste("GTEx", r$tissue), cohort = FALSE))
+        return(list(mean = r$mean, sd = r$sd, expressed = r$expressed,
+                    poles = r$poles, tissue = r$tissue, pipeline = r$pipeline,
+                    label = paste("GTEx", r$tissue), cohort = FALSE))
     }
     m <- .as_logcpm(reference, assay = assay, log = log)
-    if (ncol(m) < 20) warning("cohort reference with fewer than 20 samples: centroid and poles will be noisy")
-    mu <- rowMeans(m); s <- apply(m, 1, sd); s[!is.finite(s) | s == 0] <- NA
-    expressed <- mu > 0 & !is.na(s)
-    poles <- NULL
-    hardy <- .hardy_column(.coldata(reference))
-    if (!is.null(hardy)) {
-        sig <- .signatures()$signatures
-        z <- (m[expressed, , drop = FALSE] - mu[expressed]) / s[expressed]; z[!is.finite(z)] <- 0
-        poles <- .poles_from_scores(.signature_score(z, sig[sig$axis == "ventilator", ]), .signature_score(z, sig[sig$axis == "agony", ]), .as_hardy(hardy))
-    } else {
-        message("cohort reference without a 'hardy' column: positions and state labels will be NA")
+    if (ncol(m) < 20) {
+        warning("cohort reference with fewer than 20 samples: ",
+                "centroid and poles will be noisy")
     }
-    list(mean = mu, sd = s, expressed = expressed, poles = poles, tissue = NA_character_, pipeline = "cohort",
-         label = sprintf("cohort of %d samples", ncol(m)), cohort = TRUE)
+    mu <- rowMeans(m)
+    s <- apply(m, 1, sd)
+    s[!is.finite(s) | s == 0] <- NA
+    expressed <- mu > 0 & !is.na(s)
+    hardy <- .hardy_column(.coldata(reference))
+    poles <- if (is.null(hardy)) {
+        message("cohort reference without a 'hardy' column: ",
+                "positions and state labels will be NA")
+        NULL
+    } else {
+        .cohort_poles(m[expressed, , drop = FALSE], mu[expressed],
+                        s[expressed], hardy)
+    }
+    list(mean = mu, sd = s, expressed = expressed, poles = poles,
+        tissue = NA_character_, pipeline = "cohort",
+        label = sprintf("cohort of %d samples", ncol(m)), cohort = TRUE)
+}
+## Poles of a cohort reference from its own Hardy labels
+.cohort_poles <- function(m, mu, s, hardy) {
+    sig <- .signatures()$signatures
+    z <- (m - mu) / s
+    z[!is.finite(z)] <- 0
+    .poles_from_scores(.signature_score(z, sig[sig$axis == "ventilator", ]),
+                        .signature_score(z, sig[sig$axis == "agony", ]),
+                        .as_hardy(hardy))
 }
 .poles_from_scores <- function(sv, sa, h) {
+    fast <- h %in% c(1L, 2L)
+    slow <- h %in% c(3L, 4L)
     data.frame(axis = c("ventilator", "agony"),
-        pole0 = c(median(sv[h == 0], na.rm = TRUE), median(sa[h %in% c(1L, 2L)], na.rm = TRUE)),
-        pole1 = c(median(sv[h >= 1], na.rm = TRUE), median(sa[h %in% c(3L, 4L)], na.rm = TRUE)),
-        n_pole0 = c(sum(h == 0, na.rm = TRUE), sum(h %in% c(1L, 2L))), n_pole1 = c(sum(h >= 1, na.rm = TRUE), sum(h %in% c(3L, 4L))),
-        stringsAsFactors = FALSE)
+                pole0 = c(median(sv[h == 0], na.rm = TRUE),
+                        median(sa[fast], na.rm = TRUE)),
+                pole1 = c(median(sv[h >= 1], na.rm = TRUE),
+                        median(sa[slow], na.rm = TRUE)),
+                n_pole0 = c(sum(h == 0, na.rm = TRUE), sum(fast)),
+                n_pole1 = c(sum(h >= 1, na.rm = TRUE), sum(slow)),
+                stringsAsFactors = FALSE)
 }
 ## Signature score: mean z with the consensus sign (NA with fewer than 5 genes)
 .signature_score <- function(z, s) {
@@ -200,42 +280,63 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"), metho
 }
 .positions <- function(out, poles) {
     one <- function(axis) {
-        if (is.null(poles) || !axis %in% colnames(out)) return(rep(NA_real_, nrow(out)))
+        na <- rep(NA_real_, nrow(out))
+        if (is.null(poles) || !axis %in% colnames(out)) return(na)
         p <- poles[poles$axis == axis, ]
-        if (!is.finite(p$pole0) || !is.finite(p$pole1) || p$pole1 == p$pole0) return(rep(NA_real_, nrow(out)))
+        ok <- is.finite(p$pole0) && is.finite(p$pole1) && p$pole1 != p$pole0
+        if (!ok) return(na)
         (out[[axis]] - p$pole0) / (p$pole1 - p$pole0)
     }
     list(ventilator = one("ventilator"), agony = one("agony"))
 }
 .state <- function(pv, pa, thr) {
-    ifelse(is.na(pv), NA_character_, ifelse(pv < thr, "perfused", ifelse(is.na(pa), "postmortem", ifelse(pa < thr, "postmortem_rapid", "postmortem_agony"))))
+    post <- ifelse(is.na(pa), "postmortem",
+                    ifelse(pa < thr, "postmortem_rapid", "postmortem_agony"))
+    ifelse(is.na(pv), NA_character_, ifelse(pv < thr, "perfused", post))
 }
-## Joint regression of the z profile on the consensus vectors (no intercept; ischemia enters as a column but is not reported)
+## Joint regression of the z profile on the consensus vectors (no intercept;
+## ischemia enters as a column but is not reported)
 .regression <- function(z, s, total_ss = NULL) {
-    axes <- unique(s$axis); g <- intersect(unique(s$ensembl), rownames(z))
-    B <- vapply(axes, function(a) { b <- s$lfc_consensus[s$axis == a][match(g, s$ensembl[s$axis == a])]; b[is.na(b)] <- 0; b }, numeric(length(g)))
+    axes <- unique(s$axis)
+    g <- intersect(unique(s$ensembl), rownames(z))
+    B <- vapply(axes, function(a) {
+        sa <- s[s$axis == a, ]
+        b <- sa$lfc_consensus[match(g, sa$ensembl)]
+        b[is.na(b)] <- 0
+        b
+    }, numeric(length(g)))
     B <- matrix(B, ncol = length(axes), dimnames = list(g, axes))
     zg <- z[g, , drop = FALSE]
     fit <- lm.fit(B, zg)
-    coefs <- matrix(fit$coefficients, nrow = length(axes), dimnames = list(axes, colnames(z)))
-    res <- as.matrix(fit$residuals)
-    ss_res <- colSums(res^2); ss_sig <- colSums(zg^2)
-    out <- S4Vectors::DataFrame(t(coefs[setdiff(axes, "ischemia"), , drop = FALSE]))
-    colnames(out) <- paste0("beta_", setdiff(axes, "ischemia"))
+    coefs <- matrix(fit$coefficients, nrow = length(axes),
+                    dimnames = list(axes, colnames(z)))
+    ss_res <- colSums(as.matrix(fit$residuals)^2)
+    ss_sig <- colSums(zg^2)
+    reported <- setdiff(axes, "ischemia")
+    out <- S4Vectors::DataFrame(t(coefs[reported, , drop = FALSE]))
+    colnames(out) <- paste0("beta_", reported)
     out$r2_signature <- 1 - ss_res / ss_sig
-    out$r2_total <- if (is.null(total_ss)) NA_real_ else (ss_sig - ss_res) / total_ss
+    out$r2_total <- if (is.null(total_ss)) {
+        NA_real_
+    } else {
+        (ss_sig - ss_res) / total_ss
+    }
     out
 }
 ## Sum of squares of z over all cohort genes (for r2_total)
 .total_ss <- function(m, ref) {
     g <- intersect(rownames(m), names(ref$mean)[ref$expressed])
-    z <- (m[g, , drop = FALSE] - ref$mean[g]) / ref$sd[g]; z[!is.finite(z)] <- 0
+    z <- (m[g, , drop = FALSE] - ref$mean[g]) / ref$sd[g]
+    z[!is.finite(z)] <- 0
     colSums(z^2)
 }
 ## Mann-Whitney AUC (no dependencies)
 .auc <- function(y, s) {
-    ok <- !is.na(y) & !is.na(s); y <- as.logical(y[ok]); s <- s[ok]
-    n1 <- sum(y); n0 <- sum(!y)
+    ok <- !is.na(y) & !is.na(s)
+    y <- as.logical(y[ok])
+    s <- s[ok]
+    n1 <- sum(y)
+    n0 <- sum(!y)
     if (n1 < 2 || n0 < 2) return(NA_real_)
     r <- rank(s)
     (sum(r[y]) - n1 * (n1 + 1) / 2) / (n1 * n0)

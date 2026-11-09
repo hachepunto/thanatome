@@ -45,13 +45,13 @@ A list with \code{keep} (sample names retained), \code{excluded} (a
 }
 \description{
 Returns the samples whose scaled positions, ischemia component, state
-label and technical flags satisfy the criteria given, together with a table of
-what was excluded and why. There is no default criterion: the analyses
-behind this package found that no subset of post-mortem controls is
-closer to surgical tissue than the full set except, slightly, the
-ventilated donors, and that excluding samples costs power. Named presets
-are offered for the two criteria the evidence does support as explicit
-choices; each is documented with its cost.
+label and technical flags satisfy the criteria given, together with a table
+of what was excluded and why. There is no default criterion: the analyses
+behind this package found that no subset of post-mortem controls is closer to
+surgical tissue than the full set except, slightly, the ventilated donors,
+and that excluding samples costs power. Named presets are offered for the two
+criteria the evidence does support as explicit choices; each is documented
+with its cost.
 }
 \examples{
 data(thanatome_example)

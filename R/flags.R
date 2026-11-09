@@ -27,7 +27,9 @@
 #' fl <- contamination_flags(thanatome_example)
 #' table(fl$pancreas, useNA = "ifany")
 #' @export
-contamination_flags <- function(x, threshold = 4, lung = FALSE, assay = "counts", lib_size = NULL, log = FALSE) {
+contamination_flags <- function(x, threshold = 4, lung = FALSE,
+                                assay = "counts", lib_size = NULL,
+                                log = FALSE) {
     m <- .as_logcpm(x, assay = assay, log = log, lib_size = lib_size)
     .flags_from_logcpm(m, threshold = threshold, lung = lung)
 }
@@ -35,11 +37,22 @@ contamination_flags <- function(x, threshold = 4, lung = FALSE, assay = "counts"
     flags <- .signatures()$flags
     one <- function(f) {
         g <- intersect(flags$ensembl[flags$flag == f], rownames(m))
-        if (!length(g)) { message("contamination_flags: no ", f, " gene found in the data; flag set to NA"); return(list(v = rep(NA_real_, ncol(m)), n = 0L)) }
+        if (!length(g)) {
+            message(
+                "contamination_flags: no ", f,
+                " gene found in the data; flag set to NA"
+            )
+            return(list(v = rep(NA_real_, ncol(m)), n = 0L))
+        }
         list(v = colMeans(m[g, , drop = FALSE]), n = length(g))
     }
-    pz <- one("pancreas"); sz <- one("surfactant")
-    data.frame(pancreas = pz$v > threshold, surfactant = if (lung) rep(FALSE, ncol(m)) else sz$v > threshold,
-               pancreas_logcpm = pz$v, surfactant_logcpm = sz$v, pancreas_n = pz$n, surfactant_n = sz$n,
-               row.names = colnames(m), stringsAsFactors = FALSE)
+    pz <- one("pancreas")
+    sz <- one("surfactant")
+    data.frame(
+        pancreas = pz$v > threshold,
+        surfactant = if (lung) rep(FALSE, ncol(m)) else sz$v > threshold,
+        pancreas_logcpm = pz$v, surfactant_logcpm = sz$v,
+        pancreas_n = pz$n, surfactant_n = sz$n,
+        row.names = colnames(m), stringsAsFactors = FALSE
+    )
 }

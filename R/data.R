@@ -33,7 +33,8 @@
 #'   (\url{https://gtexportal.org}, dbGaP phs000424.v8), ten tissues: ovary,
 #'   breast, thyroid, lung, sigmoid colon, transverse colon, liver, prostate,
 #'   uterus and skin (lower leg); DESeq2 per tissue and Stouffer consensus,
-#'   analysis repository \url{https://github.com/hachepunto/thanatome-manuscript}.
+#'   analysis repository
+#'   \url{https://github.com/hachepunto/thanatome-manuscript}.
 #' @references GTEx Consortium (2020) Science 369:1318-1330
 #'   \doi{10.1126/science.aaz1776}; Ferreira PG et al. (2018) Nature
 #'   Communications 9:490 \doi{10.1038/s41467-017-02772-x}; Nieuwenhuis TO
@@ -42,7 +43,8 @@
 #' @usage data(thanatome_signatures)
 #' @examples
 #' data(thanatome_signatures)
-#' table(thanatome_signatures$signatures$axis, thanatome_signatures$signatures$direction)
+#' sg <- thanatome_signatures$signatures
+#' table(sg$axis, sg$direction)
 "thanatome_signatures"
 
 #' Per-tissue GTEx references for centring new samples

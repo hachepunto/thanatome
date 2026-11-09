@@ -86,7 +86,8 @@ choose with their cost in view.
 }
 \examples{
 data(thanatome_example)
-cc <- compare_controls(thanatome_example, group = "group", control = "control",
+cc <- compare_controls(thanatome_example, group = "group",
+                       control = "control",
                        criteria = list(no_agony = list(preset = "no_agony")),
                        reference = "ovary", n_random = 2)
 cc$summary

@@ -10,20 +10,27 @@
 #' @param de The result object or table.
 #' @return A `DataFrame`.
 #' @examples
-#' de <- data.frame(logFC = c(1.2, -0.8), adj.P.Val = c(0.01, 0.2),
-#'                  row.names = c("ENSG00000166189.7", "ENSG00000172409.5"))
+#' de <- data.frame(
+#'     logFC = c(1.2, -0.8), adj.P.Val = c(0.01, 0.2),
+#'     row.names = c("ENSG00000166189.7", "ENSG00000172409.5")
+#' )
 #' as_de_table(de)
 #' @export
 as_de_table <- function(de) {
     if (is(de, "TopTags")) de <- de$table
     d <- S4Vectors::DataFrame(as.data.frame(de))
     gene <- if ("gene" %in% colnames(d)) d$gene else rownames(d)
-    if (is.null(gene)) stop("gene ids must be in the row names or in a 'gene' column")
+    if (is.null(gene)) {
+        stop("gene ids must be in the row names or in a 'gene' column")
+    }
     d$gene <- sub("\\..*$", "", gene)
     lfc <- intersect(c("log2FoldChange", "logFC"), colnames(d))
     adj <- intersect(c("padj", "adj.P.Val", "FDR"), colnames(d))
-    if (!length(lfc) || !length(adj)) stop("could not find the log fold change or adjusted p-value column")
-    d$log2FoldChange <- d[[lfc[1]]]; d$padj <- d[[adj[1]]]
+    if (!length(lfc) || !length(adj)) {
+        stop("could not find the log fold change or adjusted p-value column")
+    }
+    d$log2FoldChange <- d[[lfc[1]]]
+    d$padj <- d[[adj[1]]]
     d
 }
 
@@ -55,23 +62,38 @@ as_de_table <- function(de) {
 #'   `axis_<axis>`, `lfc_consensus_<axis>`, `delta_lfc_<axis>` and
 #'   `sign_depends_on_control`.
 #' @examples
-#' de <- data.frame(logFC = c(1.2, -0.8, 0.3), adj.P.Val = c(0.01, 0.2, 0.5),
-#'                  row.names = c("ENSG00000166189", "ENSG00000172409", "ENSG00000000003"))
+#' de <- data.frame(
+#'     logFC = c(1.2, -0.8, 0.3), adj.P.Val = c(0.01, 0.2, 0.5),
+#'     row.names = c("ENSG00000166189", "ENSG00000172409", "ENSG00000000003")
+#' )
 #' annotate_de(de)
 #' @export
-annotate_de <- function(de, axes = c("ventilator", "agony"), min_tissues = NULL, scale = 1) {
-    axes <- match.arg(axes, c("ventilator", "agony", "ischemia"), several.ok = TRUE)
+annotate_de <- function(de, axes = c("ventilator", "agony"),
+                        min_tissues = NULL, scale = 1) {
+    axes <- match.arg(axes, c("ventilator", "agony", "ischemia"),
+        several.ok = TRUE
+    )
     d <- as_de_table(de)
     sig <- death_signatures(axes)
     if (!is.null(min_tissues)) sig <- sig[sig$n_tissues >= min_tissues, ]
     cols <- lapply(axes, function(a) {
-        s <- sig[sig$axis == a, ]; i <- match(d$gene, s$ensembl)
-        S4Vectors::DataFrame(axis = s$direction[i], lfc_consensus = s$lfc_consensus[i], delta_lfc = -scale * s$lfc_consensus[i])
+        s <- sig[sig$axis == a, ]
+        i <- match(d$gene, s$ensembl)
+        S4Vectors::DataFrame(
+            axis = s$direction[i],
+            lfc_consensus = s$lfc_consensus[i],
+            delta_lfc = -scale * s$lfc_consensus[i]
+        )
     })
     names(cols) <- axes
-    ann <- do.call(cbind, lapply(axes, function(a) { x <- cols[[a]]; colnames(x) <- paste0(colnames(x), "_", a); x }))
+    ann <- do.call(cbind, lapply(axes, function(a) {
+        x <- cols[[a]]
+        colnames(x) <- paste0(colnames(x), "_", a)
+        x
+    }))
     d <- cbind(d, ann)
-    dm <- do.call(cbind, lapply(cols, function(x) x$delta_lfc)); dm[is.na(dm)] <- 0
+    dm <- do.call(cbind, lapply(cols, function(x) x$delta_lfc))
+    dm[is.na(dm)] <- 0
     d$sign_depends_on_control <- apply(abs(dm) > abs(d$log2FoldChange), 1, any)
     d
 }

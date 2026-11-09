@@ -40,7 +40,9 @@ ischemia component is not annotated by default: its consensus is per
 standard deviation of ischemic time and is not a pole-to-pole contrast.
 }
 \examples{
-de <- data.frame(logFC = c(1.2, -0.8, 0.3), adj.P.Val = c(0.01, 0.2, 0.5),
-                 row.names = c("ENSG00000166189", "ENSG00000172409", "ENSG00000000003"))
+de <- data.frame(
+    logFC = c(1.2, -0.8, 0.3), adj.P.Val = c(0.01, 0.2, 0.5),
+    row.names = c("ENSG00000166189", "ENSG00000172409", "ENSG00000000003")
+)
 annotate_de(de)
 }

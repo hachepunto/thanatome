@@ -35,11 +35,12 @@ label can be used there, but a continuous adjustment is the honest use of
 these scores.
 }
 \details{
-Two cautions are printed on each call unless \code{quiet = TRUE}. First, the axes vary only among the
-post-mortem samples: in a tumour-versus-control design every tumour sits
-at the same (undefined) value, so adjusting across groups partially
-confounds the death axes with the group effect; adjust within controls,
-or include the covariates in a design where the group term is kept.
+Two cautions are printed on each call unless \code{quiet = TRUE}. First, the
+axes vary only among the post-mortem samples: in a tumour-versus-control
+design every tumour sits at the same (undefined) value, so adjusting across
+groups partially confounds the death axes with the group effect; adjust
+within controls, or include the covariates in a design where the group term
+is kept.
 Second, the adjustment centres the controls at their own mean, not at the
 living pole: it removes the variation between donors, not the distance
 between post-mortem and living tissue.

@@ -19,7 +19,9 @@ the columns \code{gene} (Ensembl id without version), \code{log2FoldChange} and
 \code{padj}, keeping the other columns.
 }
 \examples{
-de <- data.frame(logFC = c(1.2, -0.8), adj.P.Val = c(0.01, 0.2),
-                 row.names = c("ENSG00000166189.7", "ENSG00000172409.5"))
+de <- data.frame(
+    logFC = c(1.2, -0.8), adj.P.Val = c(0.01, 0.2),
+    row.names = c("ENSG00000166189.7", "ENSG00000172409.5")
+)
 as_de_table(de)
 }
