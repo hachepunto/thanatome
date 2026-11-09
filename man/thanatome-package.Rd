@@ -31,14 +31,14 @@ Useful links:
 
 Authors:
 \itemize{
-  \item Camila Barrios-Cervantes \email{paulacamilabarrioscervantes@gmail.com} (\href{https://orcid.org/0009-0006-9971-790X}{ORCID}) [copyright holder]
-  \item Daniel Pérez-Calixto \email{daniel_perez@ciencias.unam.mx} (\href{https://orcid.org/0009-0004-3988-1260}{ORCID}) [copyright holder]
+  \item Daniel P<U+00E9>rez-Calixto \email{dperez@inmegen.gob.mx} (\href{https://orcid.org/0009-0004-3988-1260}{ORCID}) [copyright holder]
   \item Enrique Hernandez-Lemus \email{ehernandez@inmegen.gob.mx} (\href{https://orcid.org/0000-0002-1872-1397}{ORCID}) [copyright holder]
 }
 
 Other contributors:
 \itemize{
-  \item Instituto Nacional de Medicina Genómica (\href{https://ror.org/01qjckx08}{ROR}) [funder]
+  \item Camila Barrios-Cervantes \email{paulacamilabarrioscervantes@gmail.com} (\href{https://orcid.org/0009-0006-9971-790X}{ORCID}) [contributor, copyright holder]
+  \item Instituto Nacional de Medicina Gen<U+00F3>mica (\href{https://ror.org/01qjckx08}{ROR}) (INMEGEN-2026-14 (Proyecto 81)) [funder]
 }
 
 }

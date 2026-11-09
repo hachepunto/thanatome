@@ -29,14 +29,17 @@
 #' or sequenced differently carries a batch effect. Two safeguards apply.
 #' Genes absent from `x` (zero counts in most of its samples) are left out
 #' by default, since an absent gene is not a down-regulated
-#' one (`drop_unexpressed`). With `normalize = "quantile"` the samples are
-#' first quantile-normalised to the distribution of the reference tissue
-#' and scored against the statistics and poles of the equally normalised
-#' GTEx samples; it needs the whole transcriptome in `x`. In external GTEx-
-#' independent cohorts (living colon biopsies, accident autopsies) the side
-#' of the poles on which a cohort falls was stable across these choices,
-#' whereas its distance beyond the poles was not: read positions outside
-#' 0-1 as a direction, not a magnitude.
+#' one (`drop_unexpressed`). When `x` holds the whole transcriptome, the
+#' samples are first quantile-normalised to the distribution of the
+#' reference tissue and scored against the statistics and poles of the
+#' equally normalised GTEx samples (`normalize`, by default). Without it,
+#' autopsies of external cohorts could land on the perfused side of the
+#' ventilator axis; within GTEx it barely changes the scores. In external
+#' GTEx-independent cohorts (living colon biopsies, accident autopsies) the
+#' side of the poles on which a quantile-normalised cohort falls was stable
+#' across gene filters and batch handling, whereas its distance beyond the
+#' poles was not: read positions outside 0-1 as a direction, not a
+#' magnitude.
 #'
 #' **Ischemia.** Ischemia is not a third axis. Its signature (86 genes) is
 #' mostly a subset of the ventilator signature with the opposite sign, and
@@ -91,9 +94,12 @@
 #'   warning is given when `x` has fewer than 10 000 genes and no library
 #'   sizes. A cohort reference always uses its own `lib_size` column or its
 #'   column sums.
-#' @param normalize `"none"` (default) or `"quantile"`: quantile-normalise
-#'   the samples to the reference distribution before scoring (see
-#'   *External cohorts*). Requires at least 10 000 genes in `x`.
+#' @param normalize `"auto"` (default), `"quantile"` or `"none"`.
+#'   `"quantile"` quantile-normalises the samples to the reference
+#'   distribution before scoring (see *External cohorts*) and requires at
+#'   least 10 000 genes in `x`; `"auto"` uses it when `x` has that many
+#'   genes and `"none"` otherwise (subsets of genes, such as the example
+#'   data). The choice made is stored in `metadata(result)$normalize`.
 #' @param drop_unexpressed Logical; `TRUE` (default) leaves out the genes
 #'   absent from `x`: zero counts in more than half of its samples (for log
 #'   input, log2-CPM below log2(0.1) in more than half), when `x` has at
@@ -138,7 +144,7 @@
 thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
                             method = c("signature", "regression"),
                             assay = "counts", log = FALSE, lib_size = NULL,
-                            normalize = c("none", "quantile"),
+                            normalize = c("auto", "quantile", "none"),
                             drop_unexpressed = TRUE, tissue = NULL,
                             min_pole = 8, state_threshold = 0.5,
                             flag_threshold = 4) {
@@ -151,6 +157,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     normalize <- match.arg(normalize)
     m <- .as_logcpm(x, assay = assay, log = log, lib_size = lib_size)
     if (is.null(colnames(m))) stop("'x' needs sample names (column names)")
+    normalize <- .resolve_normalize(normalize, m)
     ref <- .resolve_reference(reference, assay = assay, log = log,
                                 normalize = normalize, min_pole = min_pole)
     sig <- .signatures()$signatures
@@ -163,8 +170,8 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     out$position_agony <- pos$agony
     out$state <- .state(out$position_ventilator, out$position_agony,
                         state_threshold)
-    if (is.null(tissue)) tissue <- ref$tissue
-    fl <- .flags_from_logcpm(m, threshold = flag_threshold, tissue = tissue)
+    fl <- .flags_from_logcpm(m, threshold = flag_threshold,
+                            tissue = tissue %||% ref$tissue)
     out$flag_pancreas <- fl$pancreas
     out$flag_surfactant <- fl$surfactant
     if (method == "regression") {
@@ -173,11 +180,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
                         total_ss = if (full) .total_ss(mz, ref) else NULL)
         out <- cbind(out, rg)
     }
-    n_genes <- vapply(cols, function(a) {
-        sum(sig$ensembl[sig$axis == a] %in% rownames(z))
-    }, integer(1))
-    out$n_genes <- matrix(n_genes, nrow = nrow(out), ncol = length(cols),
-                        byrow = TRUE, dimnames = list(NULL, cols))
+    out$n_genes <- .n_genes(z, sig, cols, nrow(out))
     meta <- .score_metadata(out, ref, method, axes, state_threshold,
                             .coldata(x))
     meta$normalize <- normalize
@@ -188,6 +191,19 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
 
 ## ---- internal helpers -------------------------------------------------------
 
+## Signature genes used per axis, as a matrix column of the result
+.n_genes <- function(z, sig, cols, n) {
+    k <- vapply(cols, function(a) {
+        sum(sig$ensembl[sig$axis == a] %in% rownames(z))
+    }, integer(1))
+    matrix(k, nrow = n, ncol = length(cols), byrow = TRUE,
+        dimnames = list(NULL, cols))
+}
+## "auto": quantile normalisation only for whole transcriptomes
+.resolve_normalize <- function(normalize, m) {
+    if (normalize != "auto") return(normalize)
+    if (nrow(m) >= 10000) "quantile" else "none"
+}
 ## Matrix used for the z-scores: optionally quantile-normalised to the
 ## reference distribution, without the genes 'x' does not express
 .prepare_for_z <- function(m, ref, normalize, drop_unexpressed) {

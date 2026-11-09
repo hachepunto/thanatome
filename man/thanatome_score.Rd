@@ -12,7 +12,7 @@ thanatome_score(
   assay = "counts",
   log = FALSE,
   lib_size = NULL,
-  normalize = c("none", "quantile"),
+  normalize = c("auto", "quantile", "none"),
   drop_unexpressed = TRUE,
   tissue = NULL,
   min_pole = 8,
@@ -57,9 +57,12 @@ warning is given when \code{x} has fewer than 10 000 genes and no library
 sizes. A cohort reference always uses its own \code{lib_size} column or its
 column sums.}
 
-\item{normalize}{\code{"none"} (default) or \code{"quantile"}: quantile-normalise
-the samples to the reference distribution before scoring (see
-\emph{External cohorts}). Requires at least 10 000 genes in \code{x}.}
+\item{normalize}{\code{"auto"} (default), \code{"quantile"} or \code{"none"}.
+\code{"quantile"} quantile-normalises the samples to the reference
+distribution before scoring (see \emph{External cohorts}) and requires at
+least 10 000 genes in \code{x}; \code{"auto"} uses it when \code{x} has that many
+genes and \code{"none"} otherwise (subsets of genes, such as the example
+data). The choice made is stored in \code{metadata(result)$normalize}.}
 
 \item{drop_unexpressed}{Logical; \code{TRUE} (default) leaves out the genes
 absent from \code{x}: zero counts in more than half of its samples (for log
@@ -129,14 +132,17 @@ positions are not.
 or sequenced differently carries a batch effect. Two safeguards apply.
 Genes absent from \code{x} (zero counts in most of its samples) are left out
 by default, since an absent gene is not a down-regulated
-one (\code{drop_unexpressed}). With \code{normalize = "quantile"} the samples are
-first quantile-normalised to the distribution of the reference tissue
-and scored against the statistics and poles of the equally normalised
-GTEx samples; it needs the whole transcriptome in \code{x}. In external GTEx-
-independent cohorts (living colon biopsies, accident autopsies) the side
-of the poles on which a cohort falls was stable across these choices,
-whereas its distance beyond the poles was not: read positions outside
-0-1 as a direction, not a magnitude.
+one (\code{drop_unexpressed}). When \code{x} holds the whole transcriptome, the
+samples are first quantile-normalised to the distribution of the
+reference tissue and scored against the statistics and poles of the
+equally normalised GTEx samples (\code{normalize}, by default). Without it,
+autopsies of external cohorts could land on the perfused side of the
+ventilator axis; within GTEx it barely changes the scores. In external
+GTEx-independent cohorts (living colon biopsies, accident autopsies) the
+side of the poles on which a quantile-normalised cohort falls was stable
+across gene filters and batch handling, whereas its distance beyond the
+poles was not: read positions outside 0-1 as a direction, not a
+magnitude.
 
 \strong{Ischemia.} Ischemia is not a third axis. Its signature (86 genes) is
 mostly a subset of the ventilator signature with the opposite sign, and

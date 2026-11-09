@@ -2,24 +2,25 @@ Package: thanatome
 Title: Donor Death Signatures for Post-Mortem Control Tissue
 Version: 0.99.0
 Authors@R: c(
-    person("Hugo", "Tovar",
-           email = "hatovar@inmegen.gob.mx",
-           role = c("aut", "cre", "cph"),
-           comment = c(ORCID = "0000-0002-8360-6133")),
-    person("Camila", "Barrios-Cervantes",
-           email = "paulacamilabarrioscervantes@gmail.com",
-           role = c("aut", "cph"),
-           comment = c(ORCID = "0009-0006-9971-790X")),
     person("Daniel", "Pérez-Calixto",
-           email = "daniel_perez@ciencias.unam.mx",
+           email = "dperez@inmegen.gob.mx",
            role = c("aut", "cph"),
            comment = c(ORCID = "0009-0004-3988-1260")),
+    person("Camila", "Barrios-Cervantes",
+           email = "paulacamilabarrioscervantes@gmail.com",
+           role = c("ctb", "cph"),
+           comment = c(ORCID = "0009-0006-9971-790X")),
     person("Enrique", "Hernandez-Lemus",
            email = "ehernandez@inmegen.gob.mx",
            role = c("aut", "cph"),
            comment = c(ORCID = "0000-0002-1872-1397")),
+    person("Hugo", "Tovar",
+           email = "hatovar@inmegen.gob.mx",
+           role = c("aut", "cre", "cph"),
+           comment = c(ORCID = "0000-0002-8360-6133")),
     person("Instituto Nacional de Medicina Genómica", role = "fnd",
-           comment = c(ROR = "https://ror.org/01qjckx08")))
+           comment = c(ROR = "https://ror.org/01qjckx08",
+                       project = "INMEGEN-2026-14 (Proyecto 81)")))
 Description: Annotates each sample of a post-mortem tissue cohort (GTEx or
     similar) with its position along two transcriptional axes of donor death
     derived from GTEx v8 across ten tissues, ventilator (perfused versus

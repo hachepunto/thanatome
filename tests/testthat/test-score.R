@@ -130,6 +130,20 @@ whole <- function(x, n_bg = 11000, seed = 1) {
         dimnames = list(bg, colnames(x))))
 }
 
+test_that("normalize = 'auto' quantile-normalises whole transcriptomes only", {
+    sub <- thanatome_score(ctl, reference = "ovary")
+    expect_identical(S4Vectors::metadata(sub)$normalize, "none")
+    m <- whole(ctl)
+    auto <- thanatome_score(m, reference = "ovary", lib_size = ctl$lib_size)
+    qn <- thanatome_score(m, reference = "ovary", lib_size = ctl$lib_size,
+                        normalize = "quantile")
+    expect_identical(S4Vectors::metadata(auto)$normalize, "quantile")
+    expect_equal(auto$ventilator, qn$ventilator)
+    none <- thanatome_score(m, reference = "ovary", lib_size = ctl$lib_size,
+                        normalize = "none")
+    expect_identical(S4Vectors::metadata(none)$normalize, "none")
+})
+
 test_that("a cohort reference works with quantile normalisation", {
     se <- SummarizedExperiment::SummarizedExperiment(
         list(counts = whole(ctl)), colData = SummarizedExperiment::colData(ctl))
