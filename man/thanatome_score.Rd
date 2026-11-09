@@ -12,6 +12,8 @@ thanatome_score(
   assay = "counts",
   log = FALSE,
   lib_size = NULL,
+  normalize = c("none", "quantile"),
+  drop_unexpressed = TRUE,
   state_threshold = 0.5,
   flag_threshold = 4
 )
@@ -49,6 +51,16 @@ of the genes (as the example data do). If \code{NULL}, a \code{lib_size} column 
 warning is given when \code{x} has fewer than 10 000 genes and no library
 sizes. A cohort reference always uses its own \code{lib_size} column or its
 column sums.}
+
+\item{normalize}{\code{"none"} (default) or \code{"quantile"}: quantile-normalise
+the samples to the reference distribution before scoring (see
+\emph{External cohorts}). Requires at least 10 000 genes in \code{x}.}
+
+\item{drop_unexpressed}{Logical; \code{TRUE} (default) leaves out the genes
+with mean log2-CPM <= 0 over the samples of \code{x}, when \code{x} has at least
+5 samples (with fewer, an absent gene cannot be told apart from a
+lowly expressed one and all genes are kept). The genes left out are
+listed in \code{metadata()$unexpressed_signature_genes}.}
 
 \item{state_threshold}{Position above which a sample is labelled
 non-perfused (ventilator axis) or in agony (agony axis). Default 0.5.}
@@ -93,6 +105,19 @@ pipeline, platform or protocol pass your own cohort (a
 \code{DTHHRDY}) column, the poles are estimated from it. Without Hardy the
 positions and labels are \code{NA}. Scores are rank-stable across pipelines;
 positions are not.
+
+\strong{External cohorts.} Against a packaged reference, a cohort quantified
+or sequenced differently carries a batch effect. Two safeguards apply.
+Genes that \code{x} does not express (mean log2-CPM <= 0 over its samples)
+are left out by default, since an absent gene is not a down-regulated
+one (\code{drop_unexpressed}). With \code{normalize = "quantile"} the samples are
+first quantile-normalised to the distribution of the reference tissue
+and scored against the statistics and poles of the equally normalised
+GTEx samples; it needs the whole transcriptome in \code{x}. In external GTEx-
+independent cohorts (living colon biopsies, accident autopsies) the side
+of the poles on which a cohort falls was stable across these choices,
+whereas its distance beyond the poles was not: read positions outside
+0-1 as a direction, not a magnitude.
 
 \strong{Ischemia.} Ischemia is not a third axis. Its signature (86 genes) is
 mostly a subset of the ventilator signature with the opposite sign, and

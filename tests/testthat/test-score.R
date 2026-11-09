@@ -79,3 +79,32 @@ test_that("add_thanatome_score appends the score to colData", {
     expect_error(add_thanatome_score(assay(ctl), reference = "ovary"),
                 "SummarizedExperiment")
 })
+
+test_that("genes not expressed in x are left out and reported", {
+    x <- ctl
+    g <- death_signatures("ventilator")$ensembl[1:3]
+    g <- intersect(g, rownames(x))
+    assay(x)[g, ] <- 0L
+    sc <- suppressWarnings(thanatome_score(x, reference = "ovary"))
+    expect_true(all(g %in%
+        S4Vectors::metadata(sc)$unexpressed_signature_genes))
+    keep <- suppressWarnings(thanatome_score(x, reference = "ovary",
+                                            drop_unexpressed = FALSE))
+    expect_false(isTRUE(all.equal(sc$ventilator, keep$ventilator)))
+})
+
+test_that("quantile normalisation needs the whole transcriptome", {
+    expect_error(thanatome_score(ctl, reference = "ovary",
+                                normalize = "quantile"), "transcriptome")
+    ## whole-transcriptome stand-in: signature genes plus background genes
+    set.seed(1)
+    bg <- setdiff(death_reference("ovary")$qn$genes, rownames(ctl))[1:11000]
+    m <- rbind(assay(ctl), matrix(rpois(length(bg) * ncol(ctl), 50),
+                                ncol = ncol(ctl),
+                                dimnames = list(bg, colnames(ctl))))
+    sc <- thanatome_score(m, reference = "ovary", normalize = "quantile",
+                        lib_size = ctl$lib_size)
+    expect_equal(nrow(sc), ncol(ctl))
+    expect_identical(S4Vectors::metadata(sc)$normalize, "quantile")
+    expect_true(all(is.finite(sc$position_ventilator)))
+})

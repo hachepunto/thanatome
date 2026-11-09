@@ -25,6 +25,19 @@
 #' positions and labels are `NA`. Scores are rank-stable across pipelines;
 #' positions are not.
 #'
+#' **External cohorts.** Against a packaged reference, a cohort quantified
+#' or sequenced differently carries a batch effect. Two safeguards apply.
+#' Genes that `x` does not express (mean log2-CPM <= 0 over its samples)
+#' are left out by default, since an absent gene is not a down-regulated
+#' one (`drop_unexpressed`). With `normalize = "quantile"` the samples are
+#' first quantile-normalised to the distribution of the reference tissue
+#' and scored against the statistics and poles of the equally normalised
+#' GTEx samples; it needs the whole transcriptome in `x`. In external GTEx-
+#' independent cohorts (living colon biopsies, accident autopsies) the side
+#' of the poles on which a cohort falls was stable across these choices,
+#' whereas its distance beyond the poles was not: read positions outside
+#' 0-1 as a direction, not a magnitude.
+#'
 #' **Ischemia.** Ischemia is not a third axis. Its signature (86 genes) is
 #' mostly a subset of the ventilator signature with the opposite sign, and
 #' only 10-23 of its genes were expressed per tissue in the analysis (15-29
@@ -75,6 +88,14 @@
 #'   warning is given when `x` has fewer than 10 000 genes and no library
 #'   sizes. A cohort reference always uses its own `lib_size` column or its
 #'   column sums.
+#' @param normalize `"none"` (default) or `"quantile"`: quantile-normalise
+#'   the samples to the reference distribution before scoring (see
+#'   *External cohorts*). Requires at least 10 000 genes in `x`.
+#' @param drop_unexpressed Logical; `TRUE` (default) leaves out the genes
+#'   with mean log2-CPM <= 0 over the samples of `x`, when `x` has at least
+#'   5 samples (with fewer, an absent gene cannot be told apart from a
+#'   lowly expressed one and all genes are kept). The genes left out are
+#'   listed in `metadata()$unexpressed_signature_genes`.
 #' @param state_threshold Position above which a sample is labelled
 #'   non-perfused (ventilator axis) or in agony (agony axis). Default 0.5.
 #' @param flag_threshold Mean log2-CPM above which a contamination flag is
@@ -102,6 +123,8 @@
 thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
                             method = c("signature", "regression"),
                             assay = "counts", log = FALSE, lib_size = NULL,
+                            normalize = c("none", "quantile"),
+                            drop_unexpressed = TRUE,
                             state_threshold = 0.5, flag_threshold = 4) {
     if (missing(reference) || is.null(reference)) {
         stop("'reference' is required: a tissue name from ",
@@ -109,11 +132,14 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     }
     axes <- match.arg(axes, several.ok = TRUE)
     method <- match.arg(method)
+    normalize <- match.arg(normalize)
     m <- .as_logcpm(x, assay = assay, log = log, lib_size = lib_size)
     if (is.null(colnames(m))) stop("'x' needs sample names (column names)")
-    ref <- .resolve_reference(reference, assay = assay, log = log)
+    ref <- .resolve_reference(reference, assay = assay, log = log,
+                                normalize = normalize)
     sig <- .signatures()$signatures
-    z <- .z_against_reference(m, ref, sig)
+    mz <- .prepare_for_z(m, ref, normalize, drop_unexpressed)
+    z <- .z_against_reference(mz, ref, sig)
     cols <- c(axes, "ischemia")
     out <- .axis_scores(z, sig, cols)
     pos <- .positions(out, ref$poles)
@@ -126,9 +152,9 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     out$flag_pancreas <- fl$pancreas
     out$flag_surfactant <- fl$surfactant
     if (method == "regression") {
-        full <- ref$cohort && length(ref$mean) >= 10000 && nrow(m) >= 10000
+        full <- ref$cohort && length(ref$mean) >= 10000 && nrow(mz) >= 10000
         rg <- .regression(z, sig[sig$axis %in% cols, ],
-                        total_ss = if (full) .total_ss(m, ref) else NULL)
+                        total_ss = if (full) .total_ss(mz, ref) else NULL)
         out <- cbind(out, rg)
     }
     n_genes <- vapply(cols, function(a) {
@@ -136,13 +162,37 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     }, integer(1))
     out$n_genes <- matrix(n_genes, nrow = nrow(out), ncol = length(cols),
                         byrow = TRUE, dimnames = list(NULL, cols))
-    S4Vectors::metadata(out) <- .score_metadata(out, ref, method, axes,
-                                                state_threshold, .coldata(x))
+    meta <- .score_metadata(out, ref, method, axes, state_threshold,
+                            .coldata(x))
+    meta$normalize <- normalize
+    meta$unexpressed_signature_genes <- attr(mz, "dropped_signature")
+    S4Vectors::metadata(out) <- meta
     out
 }
 
 ## ---- internal helpers -------------------------------------------------------
 
+## Matrix used for the z-scores: optionally quantile-normalised to the
+## reference distribution, without the genes 'x' does not express
+.prepare_for_z <- function(m, ref, normalize, drop_unexpressed) {
+    ## with fewer than 5 samples an absent gene and a lowly expressed one
+    ## cannot be told apart: all genes are kept
+    drop <- drop_unexpressed && ncol(m) >= 5
+    low <- if (drop) rownames(m)[rowMeans(m) <= 0] else character()
+    if (normalize == "quantile") {
+        if (nrow(m) < 10000) {
+            stop("normalize = \"quantile\" needs the whole transcriptome ",
+                "(at least 10 000 genes) in 'x'")
+        }
+        g <- intersect(rownames(m), ref$qn_genes)
+        m <- .qn_apply(m[g, , drop = FALSE], ref$qn_target)
+    }
+    m <- m[!rownames(m) %in% low, , drop = FALSE]
+    sig_ref <- intersect(.signatures()$signatures$ensembl,
+                        names(ref$mean)[ref$expressed])
+    attr(m, "dropped_signature") <- intersect(low, sig_ref)
+    m
+}
 ## Per-gene z against the reference, only for genes expressed in it
 .z_against_reference <- function(m, ref, sig) {
     expressed <- names(ref$mean)[ref$expressed]
@@ -153,14 +203,34 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     }
     sig_ref <- intersect(sig$ensembl, expressed)
     n_found <- length(intersect(g, sig_ref))
+    n_low <- length(attr(m, "dropped_signature"))
     if (n_found < 0.9 * length(sig_ref)) {
         warning("only ", n_found, " of ", length(sig_ref),
-                " signature genes of the reference are in 'x'; ",
-                "positions may be biased")
+                " signature genes of the reference are used (", n_low,
+                " not expressed in 'x', ",
+                length(sig_ref) - n_found - n_low,
+                " absent); positions may be biased")
     }
     z <- (m[g, , drop = FALSE] - ref$mean[g]) / ref$sd[g]
     z[!is.finite(z)] <- 0
     z
+}
+## Target distribution: 2000 quantiles of the mean sorted profile
+.qn_quantiles <- function(l, n_q = 2000) {
+    o <- sort(rowMeans(apply(l, 2, sort)))
+    stats::approx(seq(0, 1, length.out = length(o)), o,
+                seq(0, 1, length.out = n_q))$y
+}
+## Quantile normalisation of each column to the target (ties averaged)
+.qn_apply <- function(m, target_q) {
+    n <- nrow(m)
+    tg <- stats::approx(seq(0, 1, length.out = length(target_q)), target_q,
+                        seq(0, 1, length.out = n))$y
+    out <- apply(m, 2, function(v) {
+        stats::approx(seq_len(n), tg, xout = rank(v, ties.method = "average"))$y
+    })
+    dimnames(out) <- dimnames(m)
+    out
 }
 ## Signature score per axis, one row per sample
 .axis_scores <- function(z, sig, cols) {
@@ -229,17 +299,18 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
 }
 ## Reference: package tissue or user cohort (per-gene mean and SD; poles if
 ## Hardy is present)
-.resolve_reference <- function(reference, assay, log) {
-    if (is.character(reference)) {
-        r <- death_reference(reference)
-        return(list(mean = r$mean, sd = r$sd, expressed = r$expressed,
-                    poles = r$poles, tissue = r$tissue, pipeline = r$pipeline,
-                    label = paste("GTEx", r$tissue), cohort = FALSE))
-    }
+.resolve_reference <- function(reference, assay, log, normalize = "none") {
+    if (is.character(reference)) return(.tissue_reference(reference, normalize))
     m <- .as_logcpm(reference, assay = assay, log = log)
     if (ncol(m) < 20) {
         warning("cohort reference with fewer than 20 samples: ",
                 "centroid and poles will be noisy")
+    }
+    qn_genes <- qn_target <- NULL
+    if (normalize == "quantile") {
+        qn_genes <- rownames(m)[rowMeans(m) > 0]
+        qn_target <- .qn_quantiles(m[qn_genes, , drop = FALSE])
+        m <- .qn_apply(m[qn_genes, , drop = FALSE], qn_target)
     }
     mu <- rowMeans(m)
     s <- apply(m, 1, sd)
@@ -256,7 +327,22 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     }
     list(mean = mu, sd = s, expressed = expressed, poles = poles,
         tissue = NA_character_, pipeline = "cohort",
-        label = sprintf("cohort of %d samples", ncol(m)), cohort = TRUE)
+        label = sprintf("cohort of %d samples", ncol(m)), cohort = TRUE,
+        qn_genes = qn_genes, qn_target = qn_target)
+}
+## Packaged GTEx reference; with normalize = "quantile" the statistics of
+## the quantile-normalised GTEx samples
+.tissue_reference <- function(tissue, normalize) {
+    r <- death_reference(tissue)
+    st <- r
+    if (normalize == "quantile") {
+        if (is.null(r$qn)) stop("this reference has no quantile statistics")
+        st <- r$qn
+    }
+    list(mean = st$mean, sd = st$sd, expressed = st$expressed,
+        poles = st$poles, tissue = r$tissue, pipeline = r$pipeline,
+        label = paste("GTEx", r$tissue), cohort = FALSE,
+        qn_genes = r$qn$genes, qn_target = r$qn$target)
 }
 ## Poles of a cohort reference from its own Hardy labels
 .cohort_poles <- function(m, mu, s, hardy) {

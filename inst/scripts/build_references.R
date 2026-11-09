@@ -2,8 +2,13 @@
 ## Builds data/thanatome_references.rda from recount3 (GTEx v8, gene,
 ## GENCODE v26):
 ## per tissue, mean and SD of log2-CPM of the signature and flag genes, which
-## genes are expressed (mean log2-CPM > 0), and the poles of each axis.
+## genes are expressed (mean log2-CPM > 0), and the poles of each axis;
+## element `qn`: the same statistics after quantile normalisation of the
+## samples to the tissue distribution (for thanatome_score(normalize =
+## "quantile")), with the gene universe and the 2000-quantile target.
 source("inst/scripts/record_session.R")
+## the quantile helpers of the package, so that build and use share them
+pkgload::load_all(".", export_all = TRUE, quiet = TRUE)
 suppressPackageStartupMessages({
     library(SummarizedExperiment)
     library(edgeR)
@@ -32,8 +37,8 @@ get_project <- function(project) {
         return(readRDS(f))
     }
     hp <- recount3::available_projects()
-    pi <- subset(hp, project == !!project & file_source == "gtex" &
-        project_type == "data_sources")
+    pi <- hp[hp$project == project & hp$file_source == "gtex" &
+        hp$project_type == "data_sources", ]
     rse <- recount3::create_rse(pi, type = "gene", annotation = "gencode_v26")
     assay(rse, "counts") <- recount3::compute_read_counts(rse)
     assay(rse, "raw_counts") <- NULL
@@ -58,16 +63,34 @@ one <- function(i) {
     lib <- colSums(x)
     rownames(x) <- sub("\\..*$", "", rownames(x))
     x <- x[!duplicated(rownames(x)), ]
-    l <- edgeR::cpm(x, lib.size = lib, log = TRUE, prior.count = 1)
-    g <- intersect(genes_ref, rownames(l))
-    l <- l[g, , drop = FALSE]
+    l_all <- edgeR::cpm(x, lib.size = lib, log = TRUE, prior.count = 1)
+    h <- cd$gtex.dthhrdy[keep]
+    st <- ref_stats(l_all[intersect(genes_ref, rownames(l_all)), ], h)
+    u <- rownames(l_all)[rowMeans(l_all) > 0]
+    target <- .qn_quantiles(l_all[u, , drop = FALSE])
+    lq <- .qn_apply(l_all[u, , drop = FALSE], target)
+    qn <- c(list(genes = u, target = target),
+            ref_stats(lq[intersect(genes_ref, u), ], h))
+    list(
+        tissue = tissues$tissue[i], gtex_name = tissues$smtsd[i],
+        pipeline = "recount3 Monorail, GENCODE v26",
+        n_samples = sum(keep),
+        hardy = table(factor(h, levels = 0:4), useNA = "ifany"),
+        mean = st$mean, sd = st$sd, expressed = st$expressed,
+        poles = st$poles,
+        ischemic_time_range = range(cd$gtex.smtsisch[keep], na.rm = TRUE),
+        qn = qn
+    )
+}
+## Mean, SD, expressed genes and poles of a log2-CPM matrix of the
+## reference genes
+ref_stats <- function(l, h) {
     mu <- rowMeans(l)
     s <- apply(l, 1, sd)
     expressed <- mu > 0
     z <- (l - mu) / s
     z[!is.finite(z)] <- 0
     z <- z[expressed, , drop = FALSE]
-    h <- cd$gtex.dthhrdy[keep]
     sv <- score_axis(z, "ventilator")
     sa <- score_axis(z, "agony")
     poles <- data.frame(
@@ -84,14 +107,7 @@ one <- function(i) {
         n_pole1 = c(sum(h >= 1, na.rm = TRUE), sum(h %in% c(3L, 4L))),
         stringsAsFactors = FALSE
     )
-    list(
-        tissue = tissues$tissue[i], gtex_name = tissues$smtsd[i],
-        pipeline = "recount3 Monorail, GENCODE v26",
-        n_samples = sum(keep),
-        hardy = table(factor(h, levels = 0:4), useNA = "ifany"),
-        mean = mu, sd = s, expressed = expressed, poles = poles,
-        ischemic_time_range = range(cd$gtex.smtsisch[keep], na.rm = TRUE)
-    )
+    list(mean = mu, sd = s, expressed = expressed, poles = poles)
 }
 thanatome_references <- lapply(seq_len(nrow(tissues)), one)
 names(thanatome_references) <- tissues$tissue
