@@ -38,6 +38,10 @@ audit_report(sc, selection = sel, comparison = cc)
 
 The packaged references were built from recount3 (Monorail, GENCODE v26) and apply to data quantified the same way; for other pipelines pass your own cohort as reference. `inst/scripts/` documents how every data object was built, with the source of each dataset; the analysis repository is `hachepunto/thanatome-manuscript`.
 
+## Citation
+
+Software archive: Pérez-Calixto D, Hernandez-Lemus E, Tovar H. thanatome: donor death signatures for post-mortem control tissue. Zenodo. https://doi.org/10.5281/zenodo.24094417 (all versions). The manuscript describing the signatures is in preparation.
+
 ## Provenance
 
 The R code, tests, vignette and data scripts of this package were written with the assistance of Claude Code (Anthropic), under the direction and review of the authors, following the Bioconductor policy on AI-assisted contributions. Each of those files carries a note at its top. The analyses that define the signatures and the numbers quoted here were run by the authors in the analysis repository.
