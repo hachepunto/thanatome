@@ -52,7 +52,9 @@ Imports:
     stats,
     utils
 Suggests:
+    BiocSet,
     BiocStyle,
+    GSEABase,
     knitr,
     rmarkdown,
     testthat (>= 3.1.5),
