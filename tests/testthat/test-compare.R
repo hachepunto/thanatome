@@ -41,6 +41,50 @@ test_that("compare_controls runs criteria against random subsets + MRA", {
     )
 })
 
+## Small, fast comparison shared by the tests below
+.cc <- function(x, ...) {
+    set.seed(1)
+    compare_controls(x, group = "group", control = "control",
+        criteria = list(perf = list(preset = "perfused")),
+        reference = "ovary", n_random = 2, ...
+    )
+}
+
+test_that("design adds covariates and validates its input", {
+    ex <- thanatome_example
+    set.seed(2)
+    ex$batch <- factor(sample(c("a", "b"), ncol(ex), replace = TRUE))
+    base <- .cc(ex)
+    withd <- .cc(ex, design = ~batch)
+    expect_s4_class(withd$summary, "DataFrame")
+    expect_false(isTRUE(all.equal(base$de$all$stat, withd$de$all$stat)))
+    expect_error(.cc(ex, design = ~nope), "not found")
+    expect_error(.cc(ex, design = "batch"), "one-sided formula")
+    ex$dup <- ex$batch
+    expect_error(.cc(ex, design = ~ batch + dup), "full column rank")
+    ex$conf <- ex$group
+    expect_error(.cc(ex, design = ~conf), "full column rank")
+})
+
+test_that("BPPARAM does not change the results", {
+    skip_on_os("windows")
+    ser <- .cc(thanatome_example)
+    par <- .cc(thanatome_example,
+        BPPARAM = BiocParallel::MulticoreParam(2))
+    expect_identical(ser$summary, par$summary)
+    expect_identical(ser$de, par$de)
+})
+
+test_that("a DGEList gives the same comparison as the SE", {
+    se <- thanatome_example
+    smp <- data.frame(group = se$group, row.names = colnames(se))
+    y <- edgeR::DGEList(SummarizedExperiment::assay(se, "counts"),
+        lib.size = se$lib_size, samples = smp)
+    a <- .cc(se)
+    b <- .cc(y)
+    expect_equal(a$summary, b$summary)
+})
+
 test_that("annotate_mra flags regulons made of signature genes", {
     sig <- death_signatures("ventilator")
     up <- sig$ensembl[sig$direction == "up"][seq_len(30)]

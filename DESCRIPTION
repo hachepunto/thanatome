@@ -25,9 +25,10 @@ Description: Annotates each sample of a post-mortem tissue cohort (GTEx or
     derived from GTEx v8 across ten tissues, ventilator (perfused versus
     post-mortem) and prolonged agony, plus the ischemia component of the
     ventilator axis. For every sample it returns a signature score per axis,
-    a position scaled between the two reference poles of the same tissue, the
+    a position scaled between the two reference poles of the same tissue, a
+    state label and technical contamination flags, and optionally the
     fraction of the sample's deviation from the tissue centroid that lies
-    along the axes, a state label and technical contamination flags. Samples
+    along the axes. Samples
     can then be plotted, selected with explicit criteria, and the per-sample
     scores used as covariates in differential-expression designs or
     batch-correction tools. compare_controls() repeats a case-versus-control
@@ -39,12 +40,13 @@ Description: Annotates each sample of a post-mortem tissue cohort (GTEx or
 License: MIT + file LICENSE
 Encoding: UTF-8
 biocViews: Software, QualityControl, Transcriptomics, RNASeq, GeneExpression,
-    BatchEffect, Classification, DifferentialExpression
+    BatchEffect, Classification, DifferentialExpression, Sequencing
 Roxygen: list(markdown = TRUE)
 Depends:
     R (>= 4.6.0),
     SummarizedExperiment
 Imports:
+    BiocParallel,
     S4Vectors,
     edgeR (>= 4.0.0),
     ggplot2,
@@ -53,6 +55,7 @@ Imports:
     utils
 Suggests:
     BiocStyle,
+    DESeq2,
     GSEABase,
     knitr,
     rmarkdown,
@@ -65,5 +68,5 @@ VignetteBuilder: knitr
 URL: https://github.com/hachepunto/thanatome
 BugReports: https://github.com/hachepunto/thanatome/issues
 LazyData: false
-Date: 2026-11-08
+Date: 2026-11-09
 RoxygenNote: 7.3.3

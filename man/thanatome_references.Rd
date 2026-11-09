@@ -10,7 +10,13 @@ A named list, one element per tissue (\code{ovary}, \code{breast},
 \code{prostate}, \code{uterus}, \code{skin_leg}), each a list with \code{tissue},
 \code{gtex_name}, \code{pipeline}, \code{n_samples}, \code{hardy} (table of samples by
 Hardy scale), \code{mean}, \code{sd}, \code{expressed} (named vectors over Ensembl
-ids), \code{poles} (data.frame) and \code{ischemic_time_range} (minutes).
+ids), \code{poles} (data.frame), \code{ischemic_time_range} (minutes) and \code{qn}.
+\code{qn} holds what \code{thanatome_score(normalize = "quantile")} uses: \code{genes}
+(the gene universe, genes with mean log2-CPM above 0 in the tissue),
+\code{target} (the target distribution as 2000 quantiles of the mean sorted
+log2-CPM profile), and \code{mean}, \code{sd}, \code{expressed} and \code{poles} computed
+as above after quantile normalisation of the samples to \code{target}, over
+the signature and flag genes that belong to \code{genes}.
 }
 \source{
 recount3 (\url{https://rna.recount.bio}; Wilks C et al. (2021)

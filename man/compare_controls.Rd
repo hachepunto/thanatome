@@ -18,11 +18,17 @@ compare_controls(
   mra = NULL,
   flags = TRUE,
   assay = "counts",
-  lib_size = NULL
+  lib_size = NULL,
+  design = NULL,
+  BPPARAM = BiocParallel::SerialParam()
 )
 }
 \arguments{
-\item{x}{A \code{SummarizedExperiment} with raw counts of cases and controls.}
+\item{x}{A \code{SummarizedExperiment} or an edgeR \code{DGEList} with raw counts
+of cases and controls. For a \code{DGEList} the counts are \code{x$counts}, the
+library sizes \code{x$samples$lib.size} (\code{norm.factors} are ignored: TMM
+is recomputed in every fit), \code{group} may name a column of \code{x$samples}
+and \code{design} refers to the columns of \code{x$samples}.}
 
 \item{group}{Name of the \code{colData} column with the group, or a vector.}
 
@@ -40,7 +46,9 @@ controls; computed from \code{reference} when \code{NULL}.}
 \code{NULL} (a tissue name or the controls themselves).}
 
 \item{n_random}{Number of random control subsets of the same size per
-criterion. Default 10.}
+criterion. Default 10. The subsets are drawn with \code{\link[=sample]{sample()}}, so the
+results depend on the random number generator: call \code{\link[=set.seed]{set.seed()}}
+beforehand to reproduce them.}
 
 \item{padj, lfc}{Thresholds that define a differentially expressed gene.}
 
@@ -51,7 +59,7 @@ criterion. Default 10.}
 a named numeric vector of regulator activities (for example a wrapper
 around viper or NaRnEA). When given, the activities of each criterion
 are compared with those of \code{all} by Spearman correlation and overlap of
-the top 25 regulators.}
+the top 25 regulators. It is always called serially.}
 
 \item{flags}{Logical; \code{TRUE} (default) removes the controls with a
 technical flag from every subset, including \code{all} and the random ones,
@@ -62,6 +70,23 @@ so that all comparisons share the same pool.}
 fewer than 5000 genes in \code{x}, the library sizes are used as given and
 no TMM factors are computed, because TMM assumes that most genes do not
 change.}
+
+\item{design}{Optional one-sided formula over the sample annotation
+(\code{colData(x)}, or \code{x$samples} for a \code{DGEList}) with the covariates to
+include in every DE fit, for example \code{~ batch + sex}. The case/control
+indicator is added as the last term and is the tested coefficient;
+\code{NULL} (default) fits \code{~ group}. The covariates should be the same as
+in your real DE analysis, so that the comparison reproduces it. The
+function stops if a variable is missing, has missing values, or the
+design matrix of a fit is not of full column rank (for example a
+covariate confounded with the group, or constant in the samples of a
+fit).}
+
+\item{BPPARAM}{A \link[BiocParallel:BiocParallelParam-class]{BiocParallel::BiocParallelParam} object. The
+edgeR fits (one per criterion plus the random-subset fits) are run with
+\code{\link[BiocParallel:bplapply]{BiocParallel::bplapply()}}. The random subsets are always drawn first,
+in the main process, so the results do not depend on the backend.
+Default \code{\link[BiocParallel:SerialParam-class]{BiocParallel::SerialParam()}}.}
 }
 \value{
 A list with \code{summary} (one row per criterion: controls kept, DEGs,
@@ -86,9 +111,21 @@ choose with their cost in view.
 }
 \examples{
 data(thanatome_example)
+set.seed(1)
 cc <- compare_controls(thanatome_example, group = "group",
                        control = "control",
                        criteria = list(no_agony = list(preset = "no_agony")),
                        reference = "ovary", n_random = 2)
 cc$summary
+
+## Covariates of the real DE in every fit, and the fits spread over
+## workers (MulticoreParam(4), for example, outside Windows)
+x <- thanatome_example
+x$batch <- factor(rep(c("a", "b"), length.out = ncol(x)))
+set.seed(1)
+cc2 <- compare_controls(x, group = "group", control = "control",
+    criteria = list(no_agony = list(preset = "no_agony")),
+    reference = "ovary", n_random = 2, design = ~ batch,
+    BPPARAM = BiocParallel::SerialParam())
+cc2$summary[, c("criterion", "n_controls", "n_deg", "lost")]
 }

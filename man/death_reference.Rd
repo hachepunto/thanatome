@@ -11,7 +11,8 @@ death_reference(tissue)
 }
 \value{
 The reference list of that tissue (\code{mean}, \code{sd}, \code{expressed},
-\code{poles}, \code{hardy}, ...); see \link{thanatome_references}.
+\code{poles}, \code{hardy}, ..., and \code{qn} with the statistics after quantile
+normalisation); see \link{thanatome_references}.
 }
 \description{
 Access the GTEx reference of one tissue

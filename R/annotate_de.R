@@ -51,7 +51,10 @@ as_de_table <- function(de) {
 #' ischemia component is not annotated by default: its consensus is per
 #' standard deviation of ischemic time and is not a pole-to-pole contrast.
 #'
-#' @param de A DE result accepted by [as_de_table()].
+#' @param de A DE result accepted by [as_de_table()]. Gene ids are Ensembl
+#'   (with or without version); if fewer than half look like Ensembl they
+#'   are taken as HGNC symbols and mapped with `org.Hs.eg.db` (Suggests).
+#'   The original ids are kept in the output.
 #' @param axes Axes to annotate (default the two axes).
 #' @param scale Factor applied to the predicted change (default 1, the full
 #'   pole-to-pole swing; use for example 0.4 if 40 percent of the controls
@@ -74,8 +77,11 @@ annotate_de <- function(de, axes = c("ventilator", "agony"),
         several.ok = TRUE
     )
     d <- as_de_table(de)
+    d$gene_input <- d$gene
+    d$gene <- .de_ensembl_ids(d$gene)
     sig <- death_signatures(axes)
     if (!is.null(min_tissues)) sig <- sig[sig$n_tissues >= min_tissues, ]
+    .report_matches(d$gene, sig)
     cols <- lapply(axes, function(a) {
         s <- sig[sig$axis == a, ]
         i <- match(d$gene, s$ensembl)
@@ -92,8 +98,33 @@ annotate_de <- function(de, axes = c("ventilator", "agony"),
         x
     }))
     d <- cbind(d, ann)
+    d$gene <- d$gene_input
+    d$gene_input <- NULL
     dm <- do.call(cbind, lapply(cols, function(x) x$delta_lfc))
     dm[is.na(dm)] <- 0
     d$sign_depends_on_control <- apply(abs(dm) > abs(d$log2FoldChange), 1, any)
     d
+}
+
+## Ensembl ids (NA when a symbol cannot be mapped); symbols if < half Ensembl
+.de_ensembl_ids <- function(gene) {
+    if (mean(grepl("^ENSG", gene)) >= 0.5) {
+        return(gene)
+    }
+    message(
+        "annotate_de: gene ids do not look like Ensembl; ",
+        "mapping symbols with org.Hs.eg.db"
+    )
+    .symbols_to_ensembl(gene)
+}
+.report_matches <- function(gene, sig) {
+    n <- sum(unique(gene) %in% sig$ensembl)
+    message("annotate_de: ", n, " genes matched the death signatures")
+    if (n == 0) {
+        warning(
+            "annotate_de: no gene matched the death signatures; check ",
+            "that the ids are human Ensembl ids or HGNC symbols",
+            call. = FALSE
+        )
+    }
 }

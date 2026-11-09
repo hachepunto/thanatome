@@ -108,3 +108,66 @@ test_that("quantile normalisation needs the whole transcriptome", {
     expect_identical(S4Vectors::metadata(sc)$normalize, "quantile")
     expect_true(all(is.finite(sc$position_ventilator)))
 })
+
+test_that(".qn_apply maps every sample onto the target distribution", {
+    set.seed(2)
+    m <- matrix(rnorm(3000), ncol = 3,
+                dimnames = list(paste0("g", 1:1000), c("a", "b", "c")))
+    tq <- thanatome:::.qn_quantiles(matrix(rexp(5000), ncol = 5))
+    q <- thanatome:::.qn_apply(m, tq)
+    tg <- stats::approx(seq(0, 1, length.out = length(tq)), tq,
+                        seq(0, 1, length.out = 1000))$y
+    expect_equal(unname(sort(q[, "a"])), tg)
+    expect_identical(order(q[, "b"]), order(m[, "b"]))
+    expect_identical(dimnames(q), dimnames(m))
+})
+
+## Whole-transcriptome stand-in: signature genes plus background genes
+whole <- function(x, n_bg = 11000, seed = 1) {
+    set.seed(seed)
+    bg <- setdiff(death_reference("ovary")$qn$genes, rownames(x))[seq_len(n_bg)]
+    rbind(assay(x), matrix(rpois(length(bg) * ncol(x), 50), ncol = ncol(x),
+        dimnames = list(bg, colnames(x))))
+}
+
+test_that("a cohort reference works with quantile normalisation", {
+    se <- SummarizedExperiment::SummarizedExperiment(
+        list(counts = whole(ctl)), colData = SummarizedExperiment::colData(ctl))
+    se$lib_size <- NULL
+    sc <- thanatome_score(se, reference = se, normalize = "quantile")
+    expect_true(all(S4Vectors::metadata(sc)$poles$ok))
+    expect_gt(S4Vectors::metadata(sc)$auc[["ventilator"]], 0.8)
+    rg <- thanatome_score(se, reference = se, method = "regression")
+    expect_true(all(is.finite(rg$r2_total)))
+    expect_true(all(rg$r2_total < 0.5))
+})
+
+test_that("input containers and sample names are checked", {
+    dup <- ctl
+    colnames(dup)[2] <- colnames(dup)[1]
+    expect_error(thanatome_score(dup, reference = "ovary"), "duplicated")
+    y <- edgeR::DGEList(assay(ctl), lib.size = ctl$lib_size)
+    y$samples$norm.factors <- seq(0.8, 1.2, length.out = ncol(ctl))
+    sc <- thanatome_score(ctl, reference = "ovary")
+    sy <- thanatome_score(y, reference = "ovary")
+    expect_equal(unname(sy$ventilator), unname(sc$ventilator))
+    el <- new("EList", list(E = edgeR::cpm(assay(ctl), log = TRUE,
+        prior.count = 1, lib.size = ctl$lib_size)))
+    expect_message(se <- thanatome_score(el, reference = "ovary"), "EList")
+    expect_equal(unname(se$ventilator), unname(sc$ventilator))
+})
+
+test_that("state agreement is NA without Hardy labels", {
+    x <- ctl
+    x$hardy <- NULL
+    sc <- thanatome_score(x, reference = "ovary")
+    expect_null(S4Vectors::metadata(sc)$state_agreement)
+})
+
+test_that("audit_report writes to a file", {
+    sc <- thanatome_score(ctl, reference = "ovary")
+    f <- tempfile(fileext = ".txt")
+    audit_report(sc, file = f)
+    expect_true(file.exists(f))
+    expect_gt(length(readLines(f)), 3)
+})

@@ -7,7 +7,10 @@
 annotate_de(de, axes = c("ventilator", "agony"), min_tissues = NULL, scale = 1)
 }
 \arguments{
-\item{de}{A DE result accepted by \code{\link[=as_de_table]{as_de_table()}}.}
+\item{de}{A DE result accepted by \code{\link[=as_de_table]{as_de_table()}}. Gene ids are Ensembl
+(with or without version); if fewer than half look like Ensembl they
+are taken as HGNC symbols and mapped with \code{org.Hs.eg.db} (Suggests).
+The original ids are kept in the output.}
 
 \item{axes}{Axes to annotate (default the two axes).}
 

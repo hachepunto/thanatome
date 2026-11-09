@@ -3,7 +3,11 @@
 ## analysis repository (results/firmas/*_consenso.tsv). See the README.md of
 ## this folder.
 source("inst/scripts/record_session.R")
-repo <- Sys.getenv("GTEX_CONTROLS", unset = "~/gtex-proyect")
+repo <- Sys.getenv("GTEX_CONTROLS")
+if (!nzchar(repo)) {
+    stop("set GTEX_CONTROLS to a checkout of the analysis repository ",
+         "(or to the folder with the deposited consensus tables)")
+}
 min_tissues <- 5
 ## |median lfc|: 0.5 for ventilator and agony (validation threshold); 0.25 for
 ## the ischemia component, whose contrast is per standard deviation of ischemic

@@ -4,7 +4,8 @@
 #'
 #' Returns the samples whose scaled positions, ischemia component, state
 #' label and technical flags satisfy the criteria given, together with a table
-#' of what was excluded and why. There is no default criterion: the analyses
+#' of what was excluded and why. No criterion on the death axes is applied by
+#' default (technical flags are excluded unless `flags = FALSE`): the analyses
 #' behind this package found that no subset of post-mortem controls is closer to
 #' surgical tissue than the full set except, slightly, the ventilated donors,
 #' and that excluding samples costs power. Named presets are offered for the two
@@ -14,6 +15,9 @@
 #' @param scores The `DataFrame` returned by [thanatome_score()].
 #' @param ventilator,agony Numeric length-2 intervals (closed) on
 #'   `position_ventilator` and `position_agony`; `NULL` means no criterion.
+#'   The agony axis is defined only among non-perfused donors, so the
+#'   `agony` interval is applied to non-perfused samples only; samples
+#'   labelled `perfused` pass it.
 #' @param ischemia Numeric length-2 interval on the raw ischemia component
 #'   (meaningful among perfused samples only).
 #' @param state Character vector of allowed state labels.
@@ -26,8 +30,11 @@
 #'   with respect to adjacent normal tissue, at a cost of the Hardy 3-4
 #'   donors, 9-17 percent of the samples, with a label that, built from the
 #'   joint-regression positions in tissue not seen by the signatures, was
-#'   right for 61-84 percent of samples). A preset only sets `state`
-#'   when `state` is `NULL`; the other criteria are combined with it.
+#'   right for 61-84 percent of samples). `"no_agony"` keeps every other
+#'   sample (including those without a label) and warns, excluding nothing
+#'   on agony, when no sample carries an agony label (agony axis missing).
+#'   A preset only acts when `state` is `NULL`; the other criteria are
+#'   combined with it.
 #' @return A list with `keep` (sample names retained), `excluded` (a
 #'   `DataFrame` with the sample and the first criterion it failed) and
 #'   `summary` (counts per criterion).
@@ -44,24 +51,14 @@ select_samples <- function(scores, ventilator = NULL, agony = NULL,
                             preset = c("none", "perfused", "no_agony")) {
     preset <- match.arg(preset)
     if (preset == "perfused" && is.null(state)) state <- "perfused"
-    if (preset == "no_agony" && is.null(state)) {
-        state <- c("perfused", "postmortem_rapid")
-    }
+    no_agony <- preset == "no_agony" && is.null(state)
+    if (no_agony) .check_agony_labels(scores)
     crit <- list(
         ventilator = .in_interval(scores$position_ventilator, ventilator),
-        agony = .in_interval(scores$position_agony, agony),
+        agony = .agony_criterion(scores, agony),
         ischemia = .in_interval(scores$ischemia, ischemia),
-        state = if (is.null(state)) {
-            rep(TRUE, nrow(scores))
-        } else {
-            !is.na(scores$state) & scores$state %in% state
-        },
-        flags = if (!flags) {
-            rep(TRUE, nrow(scores))
-        } else {
-            !(scores$flag_pancreas %in% TRUE |
-                scores$flag_surfactant %in% TRUE)
-        }
+        state = .state_criterion(scores, state, no_agony),
+        flags = .flag_criterion(scores, flags)
     )
     if (flags && (anyNA(scores$flag_pancreas) ||
         anyNA(scores$flag_surfactant))) {
@@ -85,10 +82,48 @@ select_samples <- function(scores, ventilator = NULL, agony = NULL,
         summary = c(n = nrow(scores), kept = sum(pass), summary)
     )
 }
+## Agony interval applies to non-perfused samples only
+.agony_criterion <- function(scores, agony) {
+    ok <- .in_interval(scores$position_agony, agony)
+    ok | scores$state %in% "perfused"
+}
+.state_criterion <- function(scores, state, no_agony) {
+    if (no_agony) {
+        return(!(scores$state %in% "postmortem_agony"))
+    }
+    if (is.null(state)) {
+        return(rep(TRUE, nrow(scores)))
+    }
+    !is.na(scores$state) & scores$state %in% state
+}
+.flag_criterion <- function(scores, flags) {
+    if (!flags) {
+        return(rep(TRUE, nrow(scores)))
+    }
+    !(scores$flag_pancreas %in% TRUE | scores$flag_surfactant %in% TRUE)
+}
+## Warn when no sample has an agony label (axis unavailable)
+.check_agony_labels <- function(scores) {
+    labelled <- scores$state %in% c("postmortem_rapid", "postmortem_agony")
+    if (!any(labelled) || all(is.na(scores$position_agony))) {
+        warning(
+            "select_samples: the agony axis is unavailable (no sample has ",
+            "an agony label); preset 'no_agony' excludes nothing on agony",
+            call. = FALSE
+        )
+    }
+}
 .in_interval <- function(v, interval) {
     if (is.null(interval)) {
         return(rep(TRUE, length(v)))
     }
-    stopifnot(length(interval) == 2)
+    if (!is.numeric(interval) || length(interval) != 2 ||
+        anyNA(interval) || interval[1] > interval[2]) {
+        stop(
+            "an interval must be a numeric vector c(lower, upper) with ",
+            "lower <= upper",
+            call. = FALSE
+        )
+    }
     !is.na(v) & v >= interval[1] & v <= interval[2]
 }

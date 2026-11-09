@@ -18,7 +18,10 @@ select_samples(
 \item{scores}{The \code{DataFrame} returned by \code{\link[=thanatome_score]{thanatome_score()}}.}
 
 \item{ventilator, agony}{Numeric length-2 intervals (closed) on
-\code{position_ventilator} and \code{position_agony}; \code{NULL} means no criterion.}
+\code{position_ventilator} and \code{position_agony}; \code{NULL} means no criterion.
+The agony axis is defined only among non-perfused donors, so the
+\code{agony} interval is applied to non-perfused samples only; samples
+labelled \code{perfused} pass it.}
 
 \item{ischemia}{Numeric length-2 interval on the raw ischemia component
 (meaningful among perfused samples only).}
@@ -35,8 +38,11 @@ depending on the tissue) or \code{"no_agony"} (exclude samples labelled
 with respect to adjacent normal tissue, at a cost of the Hardy 3-4
 donors, 9-17 percent of the samples, with a label that, built from the
 joint-regression positions in tissue not seen by the signatures, was
-right for 61-84 percent of samples). A preset only sets \code{state}
-when \code{state} is \code{NULL}; the other criteria are combined with it.}
+right for 61-84 percent of samples). \code{"no_agony"} keeps every other
+sample (including those without a label) and warns, excluding nothing
+on agony, when no sample carries an agony label (agony axis missing).
+A preset only acts when \code{state} is \code{NULL}; the other criteria are
+combined with it.}
 }
 \value{
 A list with \code{keep} (sample names retained), \code{excluded} (a
@@ -46,7 +52,8 @@ A list with \code{keep} (sample names retained), \code{excluded} (a
 \description{
 Returns the samples whose scaled positions, ischemia component, state
 label and technical flags satisfy the criteria given, together with a table
-of what was excluded and why. There is no default criterion: the analyses
+of what was excluded and why. No criterion on the death axes is applied by
+default (technical flags are excluded unless \code{flags = FALSE}): the analyses
 behind this package found that no subset of post-mortem controls is closer to
 surgical tissue than the full set except, slightly, the ventilated donors,
 and that excluding samples costs power. Named presets are offered for the two

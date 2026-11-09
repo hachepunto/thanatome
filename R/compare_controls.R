@@ -14,7 +14,11 @@
 #' outcome. Decide the candidate criteria first, run them all once, and
 #' choose with their cost in view.
 #'
-#' @param x A `SummarizedExperiment` with raw counts of cases and controls.
+#' @param x A `SummarizedExperiment` or an edgeR `DGEList` with raw counts
+#'   of cases and controls. For a `DGEList` the counts are `x$counts`, the
+#'   library sizes `x$samples$lib.size` (`norm.factors` are ignored: TMM
+#'   is recomputed in every fit), `group` may name a column of `x$samples`
+#'   and `design` refers to the columns of `x$samples`.
 #' @param group Name of the `colData` column with the group, or a vector.
 #' @param control Value of `group` that marks the controls.
 #' @param criteria Named list of criteria; each element is a list of
@@ -26,7 +30,9 @@
 #' @param reference Reference for [thanatome_score()] when `scores` is
 #'   `NULL` (a tissue name or the controls themselves).
 #' @param n_random Number of random control subsets of the same size per
-#'   criterion. Default 10.
+#'   criterion. Default 10. The subsets are drawn with [sample()], so the
+#'   results depend on the random number generator: call [set.seed()]
+#'   beforehand to reproduce them.
 #' @param padj,lfc Thresholds that define a differentially expressed gene.
 #' @param min_controls Minimum controls a criterion must keep. Default 8.
 #' @param mra Optional function taking the DE table of one run (a
@@ -34,7 +40,7 @@
 #'   a named numeric vector of regulator activities (for example a wrapper
 #'   around viper or NaRnEA). When given, the activities of each criterion
 #'   are compared with those of `all` by Spearman correlation and overlap of
-#'   the top 25 regulators.
+#'   the top 25 regulators. It is always called serially.
 #' @param flags Logical; `TRUE` (default) removes the controls with a
 #'   technical flag from every subset, including `all` and the random ones,
 #'   so that all comparisons share the same pool.
@@ -43,6 +49,21 @@
 #'   fewer than 5000 genes in `x`, the library sizes are used as given and
 #'   no TMM factors are computed, because TMM assumes that most genes do not
 #'   change.
+#' @param design Optional one-sided formula over the sample annotation
+#'   (`colData(x)`, or `x$samples` for a `DGEList`) with the covariates to
+#'   include in every DE fit, for example `~ batch + sex`. The case/control
+#'   indicator is added as the last term and is the tested coefficient;
+#'   `NULL` (default) fits `~ group`. The covariates should be the same as
+#'   in your real DE analysis, so that the comparison reproduces it. The
+#'   function stops if a variable is missing, has missing values, or the
+#'   design matrix of a fit is not of full column rank (for example a
+#'   covariate confounded with the group, or constant in the samples of a
+#'   fit).
+#' @param BPPARAM A [BiocParallel::BiocParallelParam-class] object. The
+#'   edgeR fits (one per criterion plus the random-subset fits) are run with
+#'   [BiocParallel::bplapply()]. The random subsets are always drawn first,
+#'   in the main process, so the results do not depend on the backend.
+#'   Default [BiocParallel::SerialParam()].
 #' @return A list with `summary` (one row per criterion: controls kept, DEGs,
 #'   lost and gained with respect to `all`, the same for the random subsets,
 #'   Jaccard, standard deviation of the change in log fold change, fraction
@@ -51,19 +72,34 @@
 #'   control names kept by each criterion), `scores` and `mra`.
 #' @examples
 #' data(thanatome_example)
+#' set.seed(1)
 #' cc <- compare_controls(thanatome_example, group = "group",
 #'                        control = "control",
 #'                        criteria = list(no_agony = list(preset = "no_agony")),
 #'                        reference = "ovary", n_random = 2)
 #' cc$summary
+#'
+#' ## Covariates of the real DE in every fit, and the fits spread over
+#' ## workers (MulticoreParam(4), for example, outside Windows)
+#' x <- thanatome_example
+#' x$batch <- factor(rep(c("a", "b"), length.out = ncol(x)))
+#' set.seed(1)
+#' cc2 <- compare_controls(x, group = "group", control = "control",
+#'     criteria = list(no_agony = list(preset = "no_agony")),
+#'     reference = "ovary", n_random = 2, design = ~ batch,
+#'     BPPARAM = BiocParallel::SerialParam())
+#' cc2$summary[, c("criterion", "n_controls", "n_deg", "lost")]
 #' @export
 compare_controls <- function(x, group, control = "control", criteria = list(),
                             scores = NULL, reference = NULL, n_random = 10,
                             padj = 0.05, lfc = 1, min_controls = 8,
                             mra = NULL, flags = TRUE, assay = "counts",
-                            lib_size = NULL) {
+                            lib_size = NULL, design = NULL,
+                            BPPARAM = BiocParallel::SerialParam()) {
     .check_criteria(criteria)
-    is_ctrl <- .group_vector(x, group) == control
+    cd <- .sample_data(x)
+    .check_design(design, cd)
+    is_ctrl <- .group_vector(x, group, cd) == control
     if (sum(is_ctrl) < min_controls || sum(!is_ctrl) < 2) {
         stop("too few controls or cases")
     }
@@ -71,20 +107,32 @@ compare_controls <- function(x, group, control = "control", criteria = list(),
     ## Common set: controls without technical flags (if flags = TRUE);
     ## 'all' and the random subsets are drawn from it
     ctrl_names <- select_samples(scores, flags = flags)$keep
-    m <- .raw_counts(x, assay)
-    libs <- .lib_sizes(x, m, lib_size)
-    cases <- colnames(x)[!is_ctrl]
-    run_de <- function(keep) .de_edger(m, libs, cases = cases, controls = keep)
     kept <- .kept_controls(criteria, scores, flags, ctrl_names, min_controls)
-    de <- lapply(kept, run_de)
+    ## Draw every random subset first (main process, fixed RNG order)
+    rnd_sets <- .draw_subsets(kept, ctrl_names, n_random)
+    fits <- .fit_all(x, cd, assay, lib_size, colnames(x)[!is_ctrl], design,
+                    c(kept, unlist(rnd_sets, recursive = FALSE)), BPPARAM)
+    de <- fits[seq_along(kept)]
+    names(de) <- names(kept)
+    rnd_de <- split(fits[-seq_along(kept)],
+                    factor(rep(names(kept), lengths(rnd_sets)), names(kept)))
+    .assemble(de, rnd_de, kept, ctrl_names, mra, padj, lfc, scores)
+}
+
+## ---- internal helpers -------------------------------------------------------
+
+## Metrics, summary table and MRA agreement from the fitted DE tables
+.assemble <- function(de, rnd_de, kept, ctrl_names, mra, padj, lfc, scores) {
     deg <- function(d) {
         d$gene[!is.na(d$padj) & d$padj <= padj & abs(d$log2FoldChange) >= lfc]
     }
     sig_genes <- unique(.signatures()$signatures$ensembl)
-    res <- lapply(names(kept), .criterion_metrics, de = de, kept = kept,
-                ctrl_names = ctrl_names, run_de = run_de, deg = deg,
-                deg_base = deg(de$all), sig_genes = sig_genes,
-                n_random = n_random)
+    one <- function(k) {
+        rnd <- unname(rnd_de[[k]])
+        .criterion_metrics(k, de[[k]], de$all, length(kept[[k]]), rnd, deg,
+                            sig_genes)
+    }
+    res <- lapply(names(kept), one)
     names(res) <- names(kept)
     summary <- S4Vectors::DataFrame(do.call(rbind, lapply(res, `[[`, "row")))
     rownames(summary) <- NULL
@@ -97,8 +145,69 @@ compare_controls <- function(x, group, control = "control", criteria = list(),
     list(summary = summary, de = de, kept = kept, scores = scores,
         mra = mra_out, thresholds = c(padj = padj, lfc = lfc))
 }
+## Sample annotation: colData of a SummarizedExperiment, samples of a DGEList
+.sample_data <- function(x) {
+    if (is(x, "DGEList")) x$samples else SummarizedExperiment::colData(x)
+}
+## Random subsets of the same size as each criterion (none for 'all' or for
+## criteria that keep the whole pool); order: criterion, then replicate
+.draw_subsets <- function(kept, ctrl_names, n_random) {
+    one <- function(k) {
+        n <- length(kept[[k]])
+        if (k == "all" || n >= length(ctrl_names)) return(list())
+        lapply(seq_len(n_random), function(i) sample(ctrl_names, n))
+    }
+    lapply(setNames(names(kept), names(kept)), one)
+}
+## DE fit of every control set (list of control names), in parallel
+.fit_all <- function(x, cd, assay, lib_size, cases, design, sets, BPPARAM) {
+    m <- .raw_counts(x, assay)
+    libs <- .lib_sizes(x, m, lib_size, cd)
+    jobs <- lapply(sets, function(s) {
+        list(controls = s, design = .fit_design(design, cd, cases, s))
+    })
+    BiocParallel::bplapply(jobs, .fit_job, counts = m, libs = libs,
+                        cases = cases, BPPARAM = BPPARAM)
+}
+.fit_job <- function(job, counts, libs, cases) {
+    .de_edger(counts, libs, cases, job$controls, job$design)
+}
+.check_design <- function(design, cd) {
+    if (is.null(design)) return(invisible(TRUE))
+    if (!inherits(design, "formula") || length(design) != 2L) {
+        stop("'design' must be a one-sided formula, e.g. ~ batch + sex")
+    }
+    miss <- setdiff(all.vars(design), colnames(cd))
+    if (length(miss)) {
+        stop("design variables not found in the sample annotation: ",
+            paste(miss, collapse = ", "))
+    }
+    invisible(TRUE)
+}
+## Model matrix of one fit: covariates first, case indicator as last column
+.fit_design <- function(design, cd, cases, controls) {
+    cols <- c(cases, controls)
+    vars <- if (is.null(design)) character() else all.vars(design)
+    dat <- as.data.frame(cd[match(cols, rownames(cd)), vars, drop = FALSE],
+                        optional = TRUE)
+    if (anyNA(dat)) stop("missing values in design variables")
+    dat$.thanatome_case <- as.numeric(seq_along(cols) <= length(cases))
+    tt <- if (is.null(design)) NULL else stats::terms(design)
+    f <- stats::reformulate(c(attr(tt, "term.labels"), ".thanatome_case"),
+                            intercept = is.null(tt) || attr(tt, "intercept"))
+    mm <- stats::model.matrix(f, dat)
+    .check_rank(mm, length(cases), length(controls))
+}
+## Full column rank and residual degrees of freedom, or stop
+.check_rank <- function(mm, n_cases, n_controls) {
+    if (qr(mm)$rank < ncol(mm) || nrow(mm) <= ncol(mm)) {
+        stop("design matrix is not of full column rank with residual ",
+            "degrees of freedom (qr rank < number of columns) in a fit ",
+            "with ", n_cases, " cases and ", n_controls, " controls")
+    }
+    mm
+}
 
-## ---- internal helpers -------------------------------------------------------
 
 .check_criteria <- function(criteria) {
     nm <- names(criteria)
@@ -110,10 +219,9 @@ compare_controls <- function(x, group, control = "control", criteria = list(),
     invisible(TRUE)
 }
 ## Group vector from a colData column name or given directly
-.group_vector <- function(x, group) {
-    in_cd <- length(group) == 1 &&
-        group %in% colnames(SummarizedExperiment::colData(x))
-    g <- if (in_cd) x[[group]] else group
+.group_vector <- function(x, group, cd) {
+    in_cd <- length(group) == 1 && group %in% colnames(cd)
+    g <- if (in_cd) cd[[group]] else group
     if (anyNA(g)) stop("'group' has missing values")
     if (is.null(colnames(x))) stop("'x' needs sample names")
     g
@@ -141,12 +249,13 @@ compare_controls <- function(x, group, control = "control", criteria = list(),
     }
     m
 }
-.lib_sizes <- function(x, m, lib_size) {
-    cd <- SummarizedExperiment::colData(x)
+.lib_sizes <- function(x, m, lib_size, cd) {
     libs <- if (!is.null(lib_size)) {
         lib_size
+    } else if (is(x, "DGEList")) {
+        x$samples$lib.size
     } else if ("lib_size" %in% colnames(cd)) {
-        x$lib_size
+        cd$lib_size
     } else {
         colSums(m)
     }
@@ -171,18 +280,10 @@ compare_controls <- function(x, group, control = "control", criteria = list(),
     kept
 }
 ## Metrics of one criterion against all controls and against random subsets
-## of the same n
-.criterion_metrics <- function(k, de, kept, ctrl_names, run_de, deg, deg_base,
-                                sig_genes, n_random) {
-    base <- de$all
-    d <- de[[k]]
+## of the same n ('rnd': DE tables of the random subsets)
+.criterion_metrics <- function(k, d, base, n, rnd, deg, sig_genes) {
+    deg_base <- deg(base)
     dk <- deg(d)
-    n <- length(kept[[k]])
-    rnd <- if (k == "all" || n >= length(ctrl_names)) {
-        list()
-    } else {
-        lapply(seq_len(n_random), function(i) run_de(sample(ctrl_names, n)))
-    }
     rnd_deg <- lapply(rnd, deg)
     rnd_n <- function(f) .med(vapply(rnd_deg, f, numeric(1)))
     row <- data.frame(
@@ -235,8 +336,9 @@ compare_controls <- function(x, group, control = "control", criteria = list(),
     c(mra_spearman = stats::cor(a[common], b[common], method = "spearman"),
         mra_top25_overlap = length(intersect(top(a), top(b))) / k)
 }
-## edgeR quasi-likelihood, cases versus controls, no covariates
-.de_edger <- function(counts, libs, cases, controls) {
+## edgeR quasi-likelihood, cases versus controls; the tested coefficient is
+## the last column of 'design' (rows: cases, then controls)
+.de_edger <- function(counts, libs, cases, controls, design) {
     cols <- c(cases, controls)
     grp <- rep(c("case", "control"), c(length(cases), length(controls)))
     y <- edgeR::DGEList(counts[, cols, drop = FALSE], lib.size = libs[cols])
@@ -244,10 +346,9 @@ compare_controls <- function(x, group, control = "control", criteria = list(),
     y <- y[keep, , keep.lib.sizes = TRUE]
     ## TMM only with a reasonably complete transcriptome
     if (nrow(counts) >= 5000) y <- edgeR::normLibSizes(y)
-    design <- stats::model.matrix(~ as.numeric(grp == "case"))
     ## edgeR >= 4: glmQLFit estimates the dispersions itself (no estimateDisp)
     fit <- edgeR::glmQLFit(y, design)
-    tt <- edgeR::glmQLFTest(fit, coef = 2)$table
+    tt <- edgeR::glmQLFTest(fit, coef = ncol(design))$table
     S4Vectors::DataFrame(gene = rownames(tt), log2FoldChange = tt$logFC,
                         stat = sign(tt$logFC) * sqrt(tt$F),
                         pvalue = tt$PValue,

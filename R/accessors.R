@@ -21,7 +21,8 @@ death_signatures <- function(axes = c("ventilator", "agony", "ischemia")) {
 #'
 #' @param tissue One of `names(thanatome_references)`.
 #' @return The reference list of that tissue (`mean`, `sd`, `expressed`,
-#'   `poles`, `hardy`, ...); see [thanatome_references].
+#'   `poles`, `hardy`, ..., and `qn` with the statistics after quantile
+#'   normalisation); see [thanatome_references].
 #' @examples
 #' death_reference("ovary")$poles
 #' @export

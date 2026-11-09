@@ -27,8 +27,8 @@
 #'
 #' **External cohorts.** Against a packaged reference, a cohort quantified
 #' or sequenced differently carries a batch effect. Two safeguards apply.
-#' Genes that `x` does not express (mean log2-CPM <= 0 over its samples)
-#' are left out by default, since an absent gene is not a down-regulated
+#' Genes absent from `x` (zero counts in most of its samples) are left out
+#' by default, since an absent gene is not a down-regulated
 #' one (`drop_unexpressed`). With `normalize = "quantile"` the samples are
 #' first quantile-normalised to the distribution of the reference tissue
 #' and scored against the statistics and poles of the equally normalised
@@ -63,11 +63,14 @@
 #' median lost part of the ischemia signal.
 #'
 #' @param x A `SummarizedExperiment` with raw counts in `assay(x, assay)`, an
-#'   edgeR `DGEList` (its library sizes and normalisation factors are used),
-#'   or a numeric matrix of raw counts (genes in rows, Ensembl ids with or
-#'   without version, samples with names). Set `log = TRUE` if the values are
-#'   already log2-CPM (prior count 1, full library size); VST or rlog values
-#'   are not comparable with the reference.
+#'   edgeR `DGEList` (its library sizes are used; normalisation factors are
+#'   ignored, as in the references), a limma `EList` (its log2-CPM `E` is
+#'   used) or a numeric matrix of raw counts (genes in rows, Ensembl ids with
+#'   or without version, unique sample names). Set `log = TRUE` if the values
+#'   are already log2-CPM (`edgeR::cpm(log = TRUE, prior.count = 1)` on the
+#'   full library size; edgeR scales the prior count by the library size, so
+#'   lowly expressed genes depend slightly on the depth of the cohort); VST
+#'   or rlog values are not comparable with the reference.
 #' @param reference Either the name of a GTEx tissue (see
 #'   `names(thanatome_references)`), or a `SummarizedExperiment` / count
 #'   matrix of the same tissue to be used as cohort reference.
@@ -92,10 +95,13 @@
 #'   the samples to the reference distribution before scoring (see
 #'   *External cohorts*). Requires at least 10 000 genes in `x`.
 #' @param drop_unexpressed Logical; `TRUE` (default) leaves out the genes
-#'   with mean log2-CPM <= 0 over the samples of `x`, when `x` has at least
-#'   5 samples (with fewer, an absent gene cannot be told apart from a
-#'   lowly expressed one and all genes are kept). The genes left out are
-#'   listed in `metadata()$unexpressed_signature_genes`.
+#'   absent from `x`: zero counts in more than half of its samples (for log
+#'   input, log2-CPM below log2(0.1) in more than half), when `x` has at
+#'   least 5 samples (with fewer, an absent gene cannot be told apart from a
+#'   lowly expressed one and all genes are kept). The criterion is far from
+#'   the reference's own expression cut, so a sample's score does not depend
+#'   on the other samples through it. The genes left out are listed in
+#'   `metadata()$unexpressed_signature_genes`.
 #' @param tissue Optional tissue of the samples, used only to switch off
 #'   the contamination flag that is physiological there (surfactant in
 #'   lung, pancreatic enzymes in pancreas); by default the tissue of the
@@ -188,7 +194,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     ## with fewer than 5 samples an absent gene and a lowly expressed one
     ## cannot be told apart: all genes are kept
     drop <- drop_unexpressed && ncol(m) >= 5
-    low <- if (drop) rownames(m)[rowMeans(m) <= 0] else character()
+    low <- if (drop) attr(m, "absent") else character()
     if (normalize == "quantile") {
         if (nrow(m) < 10000) {
             stop("normalize = \"quantile\" needs the whole transcriptome ",
@@ -258,30 +264,58 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     hardy <- .hardy_column(cd)
     if (is.null(hardy)) return(meta)
     hl <- hardy_layers(hardy)
-    if (!"agony" %in% axes) hl$state[hl$state != "perfused"] <- "postmortem"
+    no_agony <- !"agony" %in% axes || all(is.na(out$position_agony))
+    if (no_agony) hl$state[hl$state != "perfused"] <- "postmortem"
     auc_axis <- function(a) if (a %in% axes) .auc(hl[[a]], out[[a]]) else NA
     meta$auc <- c(ventilator = auc_axis("ventilator"),
                 agony = auc_axis("agony"))
-    meta$state_agreement <- mean(out$state == hl$state, na.rm = TRUE)
+    ok <- !is.na(out$state) & !is.na(hl$state)
+    meta$state_agreement <- if (any(ok)) {
+        mean(out$state[ok] == hl$state[ok])
+    } else {
+        NA_real_
+    }
     meta
 }
-## log2-CPM matrix (prior 1) with unversioned Ensembl ids
+## log2-CPM matrix (edgeR prior count 1) with unversioned Ensembl ids;
+## attribute "absent": genes with zero counts in more than half of the
+## samples (log input: log2-CPM below log2(0.1) in more than half)
 .as_logcpm <- function(x, assay = "counts", log = FALSE, lib_size = NULL) {
+    if (is(x, "EList")) {
+        message("using the log2-CPM of the EList (voom uses a prior count ",
+                "of 0.5, not 1)")
+        x <- x$E
+        log <- TRUE
+    }
     if (is(x, "DGEList")) {
-        if (is.null(lib_size)) {
-            lib_size <- x$samples$lib.size * x$samples$norm.factors
-        }
+        ## library sizes only: the references were built without TMM
+        if (is.null(lib_size)) lib_size <- x$samples$lib.size
         x <- x$counts
     }
+    m <- .gene_matrix(x, assay)
+    absent <- if (log) {
+        rowMeans(m < log2(0.1)) > 0.5
+    } else {
+        rowMeans(m == 0) > 0.5
+    }
+    if (!log) m <- .cpm_from_counts(m, x, lib_size)
+    attr(m, "absent") <- rownames(m)[absent]
+    m
+}
+## Count or log matrix with unversioned, unique Ensembl ids and unique
+## sample names
+.gene_matrix <- function(x, assay) {
     m <- if (is(x, "SummarizedExperiment")) {
         SummarizedExperiment::assay(x, assay)
     } else {
         as.matrix(x)
     }
     if (is.null(rownames(m))) stop("'x' needs gene ids (Ensembl) as row names")
+    if (anyDuplicated(colnames(m))) stop("'x' has duplicated sample names")
     rownames(m) <- sub("\\..*$", "", rownames(m))
-    m <- m[!duplicated(rownames(m)), , drop = FALSE]
-    if (log) return(m)
+    m[!duplicated(rownames(m)), , drop = FALSE]
+}
+.cpm_from_counts <- function(m, x, lib_size) {
     if (is.null(lib_size)) {
         cd <- .coldata(x)
         if (!is.null(cd) && "lib_size" %in% colnames(cd)) {

@@ -65,7 +65,13 @@
 #'   `prostate`, `uterus`, `skin_leg`), each a list with `tissue`,
 #'   `gtex_name`, `pipeline`, `n_samples`, `hardy` (table of samples by
 #'   Hardy scale), `mean`, `sd`, `expressed` (named vectors over Ensembl
-#'   ids), `poles` (data.frame) and `ischemic_time_range` (minutes).
+#'   ids), `poles` (data.frame), `ischemic_time_range` (minutes) and `qn`.
+#'   `qn` holds what `thanatome_score(normalize = "quantile")` uses: `genes`
+#'   (the gene universe, genes with mean log2-CPM above 0 in the tissue),
+#'   `target` (the target distribution as 2000 quantiles of the mean sorted
+#'   log2-CPM profile), and `mean`, `sd`, `expressed` and `poles` computed
+#'   as above after quantile normalisation of the samples to `target`, over
+#'   the signature and flag genes that belong to `genes`.
 #' @source recount3 (\url{https://rna.recount.bio}; Wilks C et al. (2021)
 #'   Genome Biology 22:323 \doi{10.1186/s13059-021-02533-6}), GTEx projects
 #'   OVARY, BREAST, THYROID, LUNG, COLON, LIVER, PROSTATE, UTERUS and SKIN,

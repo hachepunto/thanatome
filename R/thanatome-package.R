@@ -13,7 +13,6 @@
 #' The main entry point is [thanatome_score()]. See the vignette
 #' `vignette("thanatome")` for a worked example.
 #'
-#' @keywords internal
 #' @importFrom methods is
 #' @importFrom stats median sd setNames lm.fit quantile
 #' @importFrom utils head

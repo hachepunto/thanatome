@@ -7,9 +7,12 @@
 #' against the regulon universe) and a death-direction score: the mean, over
 #' the targets that belong to the axis, of the product of the regulon mode
 #' (sign of `tfmode`) and the sign of the consensus log fold change. A score
-#' near +1 means the regulator's inferred activity rises along the axis
-#' (its activated targets go up with the death process), near -1 that it
-#' falls; regulators with a significant enrichment are flagged as ones whose
+#' near +1 means the regulon's activated targets lie on the "up" side of the
+#' axis, near -1 that they lie on the "down" side. The sign of "up" is
+#' defined per axis: higher in ventilated donors (Hardy 0, the perfused
+#' pole) for `ventilator`, higher in slow deaths for `agony`, and higher
+#' with longer ischemic time for `ischemia`, as in [death_signatures()].
+#' Regulators with a significant enrichment are flagged as ones whose
 #' differential activity may reflect the state of the controls rather than
 #' the cases.
 #'
@@ -29,9 +32,13 @@
 #'   dropped. Default 10.
 #' @param universe Gene universe for the Fisher test; by default the union
 #'   of all regulon targets.
+#' @param padj_threshold Adjusted p-value at or below which an axis
+#'   enrichment raises `flag_control_state`. Default 0.05.
 #' @return A `DataFrame` with one row per regulator: `nes`, `n_targets`,
-#'   and per axis `frac_<axis>`, `fisher_padj_<axis>`, `direction_<axis>`,
-#'   plus `flag_control_state`.
+#'   and per axis `frac_<axis>`, `fisher_padj_<axis>`, `direction_<axis>`
+#'   (+1: the regulon's activated targets are higher in ventilated donors
+#'   for `ventilator`, in slow deaths for `agony`, with longer ischemic
+#'   time for `ischemia`), plus `flag_control_state`.
 #' @examples
 #' sig <- death_signatures("ventilator")
 #' up <- sig$ensembl[sig$direction == "up"][1:30]
@@ -41,7 +48,8 @@
 #' annotate_mra(c(TF_vent = 3.2, TF_other = -1.1), regs)
 #' @export
 annotate_mra <- function(nes, regulons, axes = c("ventilator", "agony"),
-                        min_targets = 10, universe = NULL) {
+                        min_targets = 10, universe = NULL,
+                        padj_threshold = 0.05) {
     axes <- match.arg(axes, c("ventilator", "agony", "ischemia"),
                         several.ok = TRUE)
     if (is.data.frame(nes)) nes <- setNames(nes$nes, nes$regulator)
@@ -74,7 +82,7 @@ annotate_mra <- function(nes, regulons, axes = c("ventilator", "agony"),
                                 n_targets = lengths(modes), ann)
     padj_cols <- grep("^fisher_padj_", colnames(res), value = TRUE)
     padj <- as.matrix(as.data.frame(res[, padj_cols, drop = FALSE]))
-    res$flag_control_state <- apply(padj <= 0.05, 1, any)
+    res$flag_control_state <- apply(padj <= padj_threshold, 1, any)
     rownames(res) <- NULL
     res
 }

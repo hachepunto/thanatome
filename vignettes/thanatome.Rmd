@@ -54,8 +54,10 @@ BiocManager::install("thanatome")
 The example data are 74 GTEx v8 ovary controls and 40 TCGA-OV primary tumours from recount3, with raw counts of the signature genes, the full library size of each sample and the Hardy scale of each donor. The controls are scored first; the tumours enter later, when the differential expression is repeated with different control subsets.
 
 ```{r score}
-library(thanatome)
-library(SummarizedExperiment)
+suppressPackageStartupMessages({
+    library(thanatome)
+    library(SummarizedExperiment)
+})
 data(thanatome_example)
 thanatome_example
 ctl <- thanatome_example[, thanatome_example$group == "control"]
@@ -92,7 +94,7 @@ plot_thanatome(sc, type = "ranked")
 
 # Selecting samples with explicit criteria
 
-`select_samples()` applies intervals on the positions, a set of allowed state labels and the technical flags, and reports what was excluded and why. There is no default criterion: in the analyses behind the package no subset of post-mortem controls was closer to surgical or living tissue than the full set except, slightly, the ventilated donors, and every exclusion costs power. The two presets correspond to the criteria the evidence supports as explicit choices, each with its cost documented in the help page.
+`select_samples()` applies intervals on the positions, a set of allowed state labels and the technical flags, and reports what was excluded and why. No criterion on the death axes is applied by default (technical flags are excluded unless `flags = FALSE`): in the analyses behind the package no subset of post-mortem controls was closer to surgical or living tissue than the full set except, slightly, the ventilated donors, and every exclusion costs power. The two presets correspond to the criteria the evidence supports as explicit choices, each with its cost documented in the help page. The agony interval applies only to non-perfused samples, since the agony axis is defined among non-ventilated donors; ventilated donors pass it.
 
 ```{r select}
 sel <- select_samples(sc, agony = c(-Inf, 0.5))
@@ -102,7 +104,7 @@ keep <- ctl[, sel$keep]
 keep
 ```
 
-To keep the annotation with the counts, `add_thanatome_score()` returns the `SummarizedExperiment` itself with the score columns added to its `colData` and the score metadata in `metadata(x)$thanatome`; the columns then travel into `DESeqDataSet` or `DGEList` objects built from it, and `prefix` avoids clashes with existing columns.
+To keep the annotation with the counts, `add_thanatome_score()` returns the `SummarizedExperiment` itself with the score columns added to its `colData` and the score metadata in `metadata(x)$thanatome`; the columns then travel into `DESeqDataSet`, `DGEList` or design matrices built from it, and `prefix` avoids clashes with existing columns.
 
 ```{r add}
 ctl_ann <- add_thanatome_score(ctl, reference = "ovary")
@@ -121,8 +123,21 @@ head(cv)
 ```{r limma, eval = requireNamespace("limma", quietly = TRUE)}
 logcpm <- edgeR::cpm(assay(ctl),
     lib.size = ctl$lib_size, log = TRUE, prior.count = 1)
-adjusted <- limma::removeBatchEffect(logcpm, covariates = cv)
+adjusted <- limma::removeBatchEffect(logcpm, covariates = cv,
+    design = matrix(1, ncol(logcpm), 1))
 dim(adjusted)
+```
+
+The annotated object from `add_thanatome_score()` feeds the usual model formulas directly, for example to ask, within the controls, which genes follow the death axes, or to carry the axes into a `DESeqDataSet`:
+
+```{r design}
+design <- model.matrix(~ ventilator + agony, data = colData(ctl_ann))
+head(design)
+```
+
+```{r deseq2, eval = requireNamespace("DESeq2", quietly = TRUE)}
+dds <- DESeq2::DESeqDataSet(ctl_ann, design = ~ ventilator + agony)
+dds
 ```
 
 # Joint regression and the fraction explained
@@ -139,7 +154,7 @@ tapply(rg$r2_signature, ctl$hardy, median)
 
 The natural loop is: score the samples, filter, look at the differential expression or the master-regulator analysis, and filter again. Its weakness is that the last step selects on the outcome: a filter kept because "the DE looks better" is a filter fitted to the result. `compare_controls()` turns the loop into one pass. The candidate criteria are declared first; each one is run once; every result is compared with the one obtained with all controls **and** with random subsets of the same size, which are the yardstick for what losing samples does by itself. A criterion whose losses and gains do not exceed those of the random subsets acts through sample size, not through the death axes.
 
-The example carries only the signature genes, so the fraction of DEGs in the axes (`frac_deg_in_axes`) is close to 1 by construction; with a whole transcriptome it is the quantity of interest.
+The example carries only the signature genes, so the fraction of DEGs in the axes (`frac_deg_in_axes`) is close to 1 by construction; with a whole transcriptome it is the quantity of interest. The fits should mirror the real analysis: `design` takes the covariates of the user's DE as a formula over `colData` (for example `~ batch + sex`; the group term is added last and tested), and `BPPARAM` spreads the edgeR fits over workers. The random subsets are drawn before fitting, so with the same `set.seed()` the result does not depend on the backend.
 
 ```{r compare}
 set.seed(1)

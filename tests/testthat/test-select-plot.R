@@ -48,3 +48,40 @@ test_that("annotate_de annotates signature genes and flags sign dependence", {
     expect_false(a$sign_depends_on_control[2])
     expect_equal(hardy_layers(c(0, 4))$state, c("perfused", "postmortem_agony"))
 })
+
+.ctl_scores <- function(...) {
+    data(thanatome_example, package = "thanatome", envir = environment())
+    ctl <- thanatome_example[, thanatome_example$group == "control"]
+    thanatome_score(ctl, reference = "ovary", ...)
+}
+
+test_that("no_agony preset excludes only postmortem_agony", {
+    sc <- .ctl_scores()
+    sel <- select_samples(sc, preset = "no_agony", flags = FALSE)
+    expect_false(any(sc[sel$keep, "state"] == "postmortem_agony"))
+    expect_equal(
+        length(sel$keep), sum(sc$state != "postmortem_agony")
+    )
+})
+
+test_that("no_agony preset warns without an agony axis", {
+    sc <- .ctl_scores(axes = "ventilator")
+    expect_warning(
+        sel <- select_samples(sc, preset = "no_agony", flags = FALSE),
+        "agony axis is unavailable"
+    )
+    expect_equal(length(sel$keep), nrow(sc))
+})
+
+test_that("agony interval leaves perfused samples in", {
+    sc <- .ctl_scores()
+    sel <- select_samples(sc, agony = c(100, 200), flags = FALSE)
+    expect_setequal(sel$keep, rownames(sc)[sc$state == "perfused"])
+})
+
+test_that("reversed or malformed intervals error", {
+    sc <- .ctl_scores()
+    expect_error(select_samples(sc, agony = c(1, 0)), "lower <= upper")
+    expect_error(select_samples(sc, ventilator = 1), "lower <= upper")
+    expect_error(select_samples(sc, ventilator = c("a", "b")), "numeric")
+})

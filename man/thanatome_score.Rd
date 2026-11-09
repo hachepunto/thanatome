@@ -22,11 +22,14 @@ thanatome_score(
 }
 \arguments{
 \item{x}{A \code{SummarizedExperiment} with raw counts in \code{assay(x, assay)}, an
-edgeR \code{DGEList} (its library sizes and normalisation factors are used),
-or a numeric matrix of raw counts (genes in rows, Ensembl ids with or
-without version, samples with names). Set \code{log = TRUE} if the values are
-already log2-CPM (prior count 1, full library size); VST or rlog values
-are not comparable with the reference.}
+edgeR \code{DGEList} (its library sizes are used; normalisation factors are
+ignored, as in the references), a limma \code{EList} (its log2-CPM \code{E} is
+used) or a numeric matrix of raw counts (genes in rows, Ensembl ids with
+or without version, unique sample names). Set \code{log = TRUE} if the values
+are already log2-CPM (\code{edgeR::cpm(log = TRUE, prior.count = 1)} on the
+full library size; edgeR scales the prior count by the library size, so
+lowly expressed genes depend slightly on the depth of the cohort); VST
+or rlog values are not comparable with the reference.}
 
 \item{reference}{Either the name of a GTEx tissue (see
 \code{names(thanatome_references)}), or a \code{SummarizedExperiment} / count
@@ -59,10 +62,13 @@ the samples to the reference distribution before scoring (see
 \emph{External cohorts}). Requires at least 10 000 genes in \code{x}.}
 
 \item{drop_unexpressed}{Logical; \code{TRUE} (default) leaves out the genes
-with mean log2-CPM <= 0 over the samples of \code{x}, when \code{x} has at least
-5 samples (with fewer, an absent gene cannot be told apart from a
-lowly expressed one and all genes are kept). The genes left out are
-listed in \code{metadata()$unexpressed_signature_genes}.}
+absent from \code{x}: zero counts in more than half of its samples (for log
+input, log2-CPM below log2(0.1) in more than half), when \code{x} has at
+least 5 samples (with fewer, an absent gene cannot be told apart from a
+lowly expressed one and all genes are kept). The criterion is far from
+the reference's own expression cut, so a sample's score does not depend
+on the other samples through it. The genes left out are listed in
+\code{metadata()$unexpressed_signature_genes}.}
 
 \item{tissue}{Optional tissue of the samples, used only to switch off
 the contamination flag that is physiological there (surfactant in
@@ -121,8 +127,8 @@ positions are not.
 
 \strong{External cohorts.} Against a packaged reference, a cohort quantified
 or sequenced differently carries a batch effect. Two safeguards apply.
-Genes that \code{x} does not express (mean log2-CPM <= 0 over its samples)
-are left out by default, since an absent gene is not a down-regulated
+Genes absent from \code{x} (zero counts in most of its samples) are left out
+by default, since an absent gene is not a down-regulated
 one (\code{drop_unexpressed}). With \code{normalize = "quantile"} the samples are
 first quantile-normalised to the distribution of the reference tissue
 and scored against the statistics and poles of the equally normalised
