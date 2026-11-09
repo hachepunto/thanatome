@@ -9,7 +9,7 @@ Donor death signatures for post-mortem control tissue.
 ```r
 if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
 BiocManager::install("thanatome")
-## development version (the repository will be public at submission)
+## development version
 BiocManager::install("hachepunto/thanatome")
 ```
 

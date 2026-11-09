@@ -28,7 +28,9 @@
 #' @param scores Optional `DataFrame` from [thanatome_score()] for the
 #'   controls; computed from `reference` when `NULL`.
 #' @param reference Reference for [thanatome_score()] when `scores` is
-#'   `NULL` (a tissue name or the controls themselves).
+#'   `NULL` (a tissue name or the controls themselves). The controls are
+#'   then scored with the defaults of [thanatome_score()] (for example
+#'   `normalize = "auto"`); to score them otherwise, pass `scores`.
 #' @param n_random Number of random control subsets of the same size per
 #'   criterion. Default 10. The subsets are drawn with [sample()], so the
 #'   results depend on the random number generator: call [set.seed()]

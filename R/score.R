@@ -29,10 +29,11 @@
 #' or sequenced differently carries a batch effect. Two safeguards apply.
 #' Genes absent from `x` (zero counts in most of its samples) are left out
 #' by default, since an absent gene is not a down-regulated
-#' one (`drop_unexpressed`). When `x` holds the whole transcriptome, the
-#' samples are first quantile-normalised to the distribution of the
-#' reference tissue and scored against the statistics and poles of the
-#' equally normalised GTEx samples (`normalize`, by default). Without it,
+#' one (`drop_unexpressed`). When `x` holds the whole, unfiltered
+#' transcriptome, the samples are first quantile-normalised to the
+#' distribution of the reference (the GTEx tissue or the cohort) and scored
+#' against its equally normalised statistics and poles (`normalize =
+#' "auto"`, the default). Without it,
 #' autopsies of external cohorts could land on the perfused side of the
 #' ventilator axis; within GTEx it barely changes the scores. In external
 #' GTEx-independent cohorts (living colon biopsies, accident autopsies) the
@@ -95,11 +96,15 @@
 #'   sizes. A cohort reference always uses its own `lib_size` column or its
 #'   column sums.
 #' @param normalize `"auto"` (default), `"quantile"` or `"none"`.
-#'   `"quantile"` quantile-normalises the samples to the reference
-#'   distribution before scoring (see *External cohorts*) and requires at
-#'   least 10 000 genes in `x`; `"auto"` uses it when `x` has that many
-#'   genes and `"none"` otherwise (subsets of genes, such as the example
-#'   data). The choice made is stored in `metadata(result)$normalize`.
+#'   `"quantile"` quantile-normalises the samples to the distribution of the
+#'   reference before scoring (see *External cohorts*). It needs the
+#'   unfiltered matrix: at least 10 000 of the genes expressed in the
+#'   reference must be in `x` (error otherwise), and a warning is given when
+#'   `x` holds less than 95% of them, as after filtering lowly expressed
+#'   genes. `"auto"` uses it when both conditions hold, with a message, and
+#'   `"none"` otherwise (subsets of genes, such as the example data, or
+#'   filtered matrices). The choice made is stored in
+#'   `metadata(result)$normalize`.
 #' @param drop_unexpressed Logical; `TRUE` (default) leaves out the genes
 #'   absent from `x`: zero counts in more than half of its samples (for log
 #'   input, log2-CPM below log2(0.1) in more than half), when `x` has at
@@ -157,7 +162,7 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     normalize <- match.arg(normalize)
     m <- .as_logcpm(x, assay = assay, log = log, lib_size = lib_size)
     if (is.null(colnames(m))) stop("'x' needs sample names (column names)")
-    normalize <- .resolve_normalize(normalize, m)
+    normalize <- .resolve_normalize(normalize, m, reference, assay, log)
     ref <- .resolve_reference(reference, assay = assay, log = log,
                                 normalize = normalize, min_pole = min_pole)
     sig <- .signatures()$signatures
@@ -199,10 +204,42 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     matrix(k, nrow = n, ncol = length(cols), byrow = TRUE,
         dimnames = list(NULL, cols))
 }
-## "auto": quantile normalisation only for whole transcriptomes
-.resolve_normalize <- function(normalize, m) {
-    if (normalize != "auto") return(normalize)
-    if (nrow(m) >= 10000) "quantile" else "none"
+## Normalisation actually applied. The genes counted are those of 'x'
+## shared with the quantile universe of the reference (expressed genes of
+## the GTEx tissue or of the cohort): quantile normalisation needs at least
+## 10 000 of them and most of the universe, since a filtered 'x' would be
+## spread over the whole target distribution and shift the scores.
+.resolve_normalize <- function(normalize, m, reference, assay, log) {
+    if (normalize == "none") return("none")
+    u <- if (is.character(reference)) {
+        death_reference(reference)$qn$genes
+    } else {
+        r <- .as_logcpm(reference, assay = assay, log = log)
+        rownames(r)[rowMeans(r) > 0]
+    }
+    n <- sum(u %in% rownames(m))
+    cover <- n / length(u)
+    full <- n >= 10000 && cover >= 0.95
+    if (normalize == "quantile") {
+        if (n < 10000) {
+            stop("normalize = \"quantile\" needs at least 10 000 genes of ",
+                "the reference in 'x' (found ", n, ")")
+        }
+        if (!full) warning(.coverage_note(cover))
+        return("quantile")
+    }
+    if (full) {
+        message("normalize = \"auto\": quantile-normalising 'x' to the ",
+            "reference (", n, " genes)")
+        return("quantile")
+    }
+    if (n >= 10000) message(.coverage_note(cover), "; not normalised")
+    "none"
+}
+.coverage_note <- function(cover) {
+    sprintf(paste0("'x' holds %.0f%% of the expressed genes of the ",
+        "reference (filtered counts?); quantile normalisation expects the ",
+        "unfiltered matrix"), 100 * cover)
 }
 ## Matrix used for the z-scores: optionally quantile-normalised to the
 ## reference distribution, without the genes 'x' does not express
@@ -212,10 +249,6 @@ thanatome_score <- function(x, reference, axes = c("ventilator", "agony"),
     drop <- drop_unexpressed && ncol(m) >= 5
     low <- if (drop) attr(m, "absent") else character()
     if (normalize == "quantile") {
-        if (nrow(m) < 10000) {
-            stop("normalize = \"quantile\" needs the whole transcriptome ",
-                "(at least 10 000 genes) in 'x'")
-        }
         g <- intersect(rownames(m), ref$qn_genes)
         m <- .qn_apply(m[g, , drop = FALSE], ref$qn_target)
     }

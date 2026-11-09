@@ -93,15 +93,19 @@ test_that("genes not expressed in x are left out and reported", {
     expect_false(isTRUE(all.equal(sc$ventilator, keep$ventilator)))
 })
 
+## Whole-transcriptome stand-in: signature genes plus background genes
+whole <- function(x, n_bg = Inf, seed = 1) {
+    set.seed(seed)
+    bg <- setdiff(death_reference("ovary")$qn$genes, rownames(x))
+    bg <- bg[seq_len(min(n_bg, length(bg)))]
+    rbind(assay(x), matrix(rpois(length(bg) * ncol(x), 50), ncol = ncol(x),
+        dimnames = list(bg, colnames(x))))
+}
+
 test_that("quantile normalisation needs the whole transcriptome", {
     expect_error(thanatome_score(ctl, reference = "ovary",
-                                normalize = "quantile"), "transcriptome")
-    ## whole-transcriptome stand-in: signature genes plus background genes
-    set.seed(1)
-    bg <- setdiff(death_reference("ovary")$qn$genes, rownames(ctl))[1:11000]
-    m <- rbind(assay(ctl), matrix(rpois(length(bg) * ncol(ctl), 50),
-                                ncol = ncol(ctl),
-                                dimnames = list(bg, colnames(ctl))))
+                                normalize = "quantile"), "10 000")
+    m <- whole(ctl)
     sc <- thanatome_score(m, reference = "ovary", normalize = "quantile",
                         lib_size = ctl$lib_size)
     expect_equal(nrow(sc), ncol(ctl))
@@ -122,19 +126,12 @@ test_that(".qn_apply maps every sample onto the target distribution", {
     expect_identical(dimnames(q), dimnames(m))
 })
 
-## Whole-transcriptome stand-in: signature genes plus background genes
-whole <- function(x, n_bg = 11000, seed = 1) {
-    set.seed(seed)
-    bg <- setdiff(death_reference("ovary")$qn$genes, rownames(x))[seq_len(n_bg)]
-    rbind(assay(x), matrix(rpois(length(bg) * ncol(x), 50), ncol = ncol(x),
-        dimnames = list(bg, colnames(x))))
-}
-
 test_that("normalize = 'auto' quantile-normalises whole transcriptomes only", {
     sub <- thanatome_score(ctl, reference = "ovary")
     expect_identical(S4Vectors::metadata(sub)$normalize, "none")
     m <- whole(ctl)
-    auto <- thanatome_score(m, reference = "ovary", lib_size = ctl$lib_size)
+    expect_message(auto <- thanatome_score(m, reference = "ovary",
+                                        lib_size = ctl$lib_size), "auto")
     qn <- thanatome_score(m, reference = "ovary", lib_size = ctl$lib_size,
                         normalize = "quantile")
     expect_identical(S4Vectors::metadata(auto)$normalize, "quantile")
@@ -142,6 +139,31 @@ test_that("normalize = 'auto' quantile-normalises whole transcriptomes only", {
     none <- thanatome_score(m, reference = "ovary", lib_size = ctl$lib_size,
                         normalize = "none")
     expect_identical(S4Vectors::metadata(none)$normalize, "none")
+    expect_false(isTRUE(all.equal(none$ventilator, auto$ventilator)))
+})
+
+test_that("normalisation counts the genes shared with the reference", {
+    m <- whole(ctl)
+    ## filtered matrix: enough genes, too little of the reference
+    f <- m[c(rownames(ctl), setdiff(rownames(m), rownames(ctl))[1:12000]), ]
+    expect_message(sc <- thanatome_score(f, reference = "ovary",
+                                        lib_size = ctl$lib_size), "filtered")
+    expect_identical(S4Vectors::metadata(sc)$normalize, "none")
+    expect_warning(thanatome_score(f, reference = "ovary",
+                                lib_size = ctl$lib_size,
+                                normalize = "quantile"), "filtered")
+    ## many rows, few Ensembl ids
+    junk <- m
+    rownames(junk)[-seq_len(nrow(ctl))] <- paste0("X", seq_len(nrow(m) -
+                                                            nrow(ctl)))
+    sc <- thanatome_score(junk, reference = "ovary", lib_size = ctl$lib_size)
+    expect_identical(S4Vectors::metadata(sc)$normalize, "none")
+    ## cohort reference with the signature genes only
+    expect_error(thanatome_score(m, reference = ctl, normalize = "quantile",
+                                lib_size = ctl$lib_size), "10 000")
+    sc <- suppressWarnings(thanatome_score(m, reference = ctl,
+                                        lib_size = ctl$lib_size))
+    expect_identical(S4Vectors::metadata(sc)$normalize, "none")
 })
 
 test_that("a cohort reference works with quantile normalisation", {
@@ -154,6 +176,9 @@ test_that("a cohort reference works with quantile normalisation", {
     rg <- thanatome_score(se, reference = se, method = "regression")
     expect_true(all(is.finite(rg$r2_total)))
     expect_true(all(rg$r2_total < 0.5))
+    rn <- thanatome_score(se, reference = se, method = "regression",
+                        normalize = "none")
+    expect_true(all(is.finite(rn$r2_total)))
 })
 
 test_that("input containers and sample names are checked", {

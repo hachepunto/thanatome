@@ -1,0 +1,17 @@
+{
+  "title": "thanatome: Donor Death Signatures for Post-Mortem Control Tissue",
+  "upload_type": "software",
+  "description": "R/Bioconductor package that annotates each sample of a post-mortem tissue cohort (GTEx or similar) with its position along two transcriptional axes of donor death derived from GTEx v8 across ten tissues (ventilator, perfused versus post-mortem; prolonged agony), plus the ischemia component of the ventilator axis, and helps select and audit control samples for differential expression.",
+  "creators": [
+    {"name": "Pérez-Calixto, Daniel", "affiliation": "Instituto Nacional de Medicina Genómica", "orcid": "0009-0004-3988-1260"},
+    {"name": "Hernandez-Lemus, Enrique", "affiliation": "Instituto Nacional de Medicina Genómica", "orcid": "0000-0002-1872-1397"},
+    {"name": "Tovar, Hugo", "affiliation": "Instituto Nacional de Medicina Genómica", "orcid": "0000-0002-8360-6133"}
+  ],
+  "contributors": [
+    {"name": "Barrios-Cervantes, Camila", "affiliation": "Instituto Nacional de Medicina Genómica", "orcid": "0009-0006-9971-790X", "type": "Researcher"},
+    {"name": "Instituto Nacional de Medicina Genómica", "type": "Sponsor"}
+  ],
+  "license": "MIT",
+  "keywords": ["Bioconductor", "GTEx", "post-mortem", "Hardy scale", "differential expression", "control samples", "transcriptomics", "R"],
+  "notes": "Funded by the Instituto Nacional de Medicina Genómica (ROR https://ror.org/01qjckx08), project INMEGEN-2026-14, Proyecto 81."
+}

@@ -38,7 +38,7 @@ Authors:
 Other contributors:
 \itemize{
   \item Camila Barrios-Cervantes \email{paulacamilabarrioscervantes@gmail.com} (\href{https://orcid.org/0009-0006-9971-790X}{ORCID}) [contributor, copyright holder]
-  \item Instituto Nacional de Medicina Gen<U+00F3>mica (\href{https://ror.org/01qjckx08}{ROR}) (INMEGEN-2026-14 (Proyecto 81)) [funder]
+  \item Instituto Nacional de Medicina Gen<U+00F3>mica (\href{https://ror.org/01qjckx08}{ROR}) (INMEGEN-2026-14, Proyecto 81) [funder]
 }
 
 }

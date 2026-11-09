@@ -20,7 +20,7 @@ Authors@R: c(
            comment = c(ORCID = "0000-0002-8360-6133")),
     person("Instituto Nacional de Medicina Genómica", role = "fnd",
            comment = c(ROR = "https://ror.org/01qjckx08",
-                       project = "INMEGEN-2026-14 (Proyecto 81)")))
+                       project = "INMEGEN-2026-14, Proyecto 81")))
 Description: Annotates each sample of a post-mortem tissue cohort (GTEx or
     similar) with its position along two transcriptional axes of donor death
     derived from GTEx v8 across ten tissues, ventilator (perfused versus

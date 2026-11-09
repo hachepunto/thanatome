@@ -58,11 +58,15 @@ sizes. A cohort reference always uses its own \code{lib_size} column or its
 column sums.}
 
 \item{normalize}{\code{"auto"} (default), \code{"quantile"} or \code{"none"}.
-\code{"quantile"} quantile-normalises the samples to the reference
-distribution before scoring (see \emph{External cohorts}) and requires at
-least 10 000 genes in \code{x}; \code{"auto"} uses it when \code{x} has that many
-genes and \code{"none"} otherwise (subsets of genes, such as the example
-data). The choice made is stored in \code{metadata(result)$normalize}.}
+\code{"quantile"} quantile-normalises the samples to the distribution of the
+reference before scoring (see \emph{External cohorts}). It needs the
+unfiltered matrix: at least 10 000 of the genes expressed in the
+reference must be in \code{x} (error otherwise), and a warning is given when
+\code{x} holds less than 95\% of them, as after filtering lowly expressed
+genes. \code{"auto"} uses it when both conditions hold, with a message, and
+\code{"none"} otherwise (subsets of genes, such as the example data, or
+filtered matrices). The choice made is stored in
+\code{metadata(result)$normalize}.}
 
 \item{drop_unexpressed}{Logical; \code{TRUE} (default) leaves out the genes
 absent from \code{x}: zero counts in more than half of its samples (for log
@@ -132,10 +136,10 @@ positions are not.
 or sequenced differently carries a batch effect. Two safeguards apply.
 Genes absent from \code{x} (zero counts in most of its samples) are left out
 by default, since an absent gene is not a down-regulated
-one (\code{drop_unexpressed}). When \code{x} holds the whole transcriptome, the
-samples are first quantile-normalised to the distribution of the
-reference tissue and scored against the statistics and poles of the
-equally normalised GTEx samples (\code{normalize}, by default). Without it,
+one (\code{drop_unexpressed}). When \code{x} holds the whole, unfiltered
+transcriptome, the samples are first quantile-normalised to the
+distribution of the reference (the GTEx tissue or the cohort) and scored
+against its equally normalised statistics and poles (\code{normalize = "auto"}, the default). Without it,
 autopsies of external cohorts could land on the perfused side of the
 ventilator axis; within GTEx it barely changes the scores. In external
 GTEx-independent cohorts (living colon biopsies, accident autopsies) the

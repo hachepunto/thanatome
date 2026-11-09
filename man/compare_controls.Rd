@@ -43,7 +43,9 @@ comparison with all controls is always added as \code{all}.}
 controls; computed from \code{reference} when \code{NULL}.}
 
 \item{reference}{Reference for \code{\link[=thanatome_score]{thanatome_score()}} when \code{scores} is
-\code{NULL} (a tissue name or the controls themselves).}
+\code{NULL} (a tissue name or the controls themselves). The controls are
+then scored with the defaults of \code{\link[=thanatome_score]{thanatome_score()}} (for example
+\code{normalize = "auto"}); to score them otherwise, pass \code{scores}.}
 
 \item{n_random}{Number of random control subsets of the same size per
 criterion. Default 10. The subsets are drawn with \code{\link[=sample]{sample()}}, so the

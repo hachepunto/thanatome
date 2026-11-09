@@ -80,7 +80,7 @@ metadata(sc)$auc
 metadata(sc)$state_agreement
 ```
 
-The scaled position is 0 at the median of the ventilated donors of the reference tissue and 1 at the median of the non-ventilated ones (for agony, 0 = fast deaths, 1 = slow deaths). Values outside 0-1 are allowed: living tissue falls below 0 on the ventilator axis. For cohorts quantified or sequenced apart from GTEx, read such values as a direction, not a magnitude: in external datasets the side of the poles on which a cohort fell was stable, but its distance beyond them changed with the handling of the batch (see *External cohorts* in `?thanatome_score`). For that reason, when `x` carries the whole transcriptome its samples are quantile-normalised to the reference tissue by default (`normalize`); the example carries only the signature genes, so it is scored without normalisation.
+The scaled position is 0 at the median of the ventilated donors of the reference tissue and 1 at the median of the non-ventilated ones (for agony, 0 = fast deaths, 1 = slow deaths). Values outside 0-1 are allowed: living tissue falls below 0 on the ventilator axis. For cohorts quantified or sequenced apart from GTEx, read such values as a direction, not a magnitude: in external datasets the side of the poles on which a cohort fell was stable, but its distance beyond them changed with the handling of the batch (see *External cohorts* in `?thanatome_score`). For that reason, when `x` carries the whole, unfiltered transcriptome its samples are quantile-normalised to the reference by default (`normalize`); pass the counts before any filtering of lowly expressed genes. The example carries only the signature genes, so it is scored without normalisation.
 
 # Looking at the samples
 
