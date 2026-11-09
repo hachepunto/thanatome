@@ -42,6 +42,13 @@
 #' signatures, was right for 61-84 percent of samples against 45-80 percent
 #' for the majority class; its weak side is rapid versus agony.
 #'
+#' **Extreme genes.** The per-gene z-scores are not truncated. Clipping
+#' them at +/-5 or +/-3, or replacing the mean by the median, left the
+#' leave-one-tissue-out AUC unchanged within GTEx (maximum |z| 7.4) and did
+#' not improve the discrimination of external cohorts (|z| up to 22);
+#' clipping at 3 only compressed the positions beyond the poles, and the
+#' median lost part of the ischemia signal.
+#'
 #' @param x A `SummarizedExperiment` with raw counts in `assay(x, assay)`, an
 #'   edgeR `DGEList` (its library sizes and normalisation factors are used),
 #'   or a numeric matrix of raw counts (genes in rows, Ensembl ids with or

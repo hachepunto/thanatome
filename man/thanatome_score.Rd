@@ -110,6 +110,13 @@ agony score the Hardy 3-4 label with AUC 0.69-0.90. The state label built
 from the joint-regression positions, in tissue not seen by the
 signatures, was right for 61-84 percent of samples against 45-80 percent
 for the majority class; its weak side is rapid versus agony.
+
+\strong{Extreme genes.} The per-gene z-scores are not truncated. Clipping
+them at +/-5 or +/-3, or replacing the mean by the median, left the
+leave-one-tissue-out AUC unchanged within GTEx (maximum |z| 7.4) and did
+not improve the discrimination of external cohorts (|z| up to 22);
+clipping at 3 only compressed the positions beyond the poles, and the
+median lost part of the ischemia signal.
 }
 \examples{
 data(thanatome_example)

@@ -42,7 +42,7 @@ biocViews: Software, QualityControl, Transcriptomics, RNASeq, GeneExpression,
     BatchEffect, Classification, DifferentialExpression
 Roxygen: list(markdown = TRUE)
 Depends:
-    R (>= 4.5),
+    R (>= 4.6.0),
     SummarizedExperiment
 Imports:
     S4Vectors,
